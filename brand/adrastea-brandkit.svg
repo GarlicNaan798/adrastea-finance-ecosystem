@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" font-family="'Inter','Segoe UI',Helvetica,Arial,sans-serif">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,600&amp;family=Inter:wght@400;500;600&amp;display=swap');
+      .serif{font-family:'Fraunces','Georgia',serif;}
+      .sans{font-family:'Inter','Segoe UI',Helvetica,Arial,sans-serif;}
+      .lbl{font-size:11px;letter-spacing:2px;fill:#23211C;fill-opacity:.45;text-transform:uppercase;}
+      .lbld{font-size:11px;letter-spacing:2px;fill:#FBFAF7;fill-opacity:.55;text-transform:uppercase;}
+    </style>
+    <!-- Reusable mark: an "A" whose crossbar is an orbit, with the moon on it -->
+    <symbol id="mark" viewBox="0 0 100 100">
+      <path d="M18 86 L50 15 L82 86" fill="none" stroke="currentColor" stroke-width="7"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="50" cy="56" rx="40" ry="13" fill="none" stroke="#9E6B4B" stroke-width="3.6"
+               transform="rotate(-18 50 56)"/>
+      <circle cx="88" cy="44" r="5.4" fill="#9E6B4B"/>
+    </symbol>
+    <radialGradient id="sky" cx="38%" cy="32%" r="90%">
+      <stop offset="0%" stop-color="#22364B"/>
+      <stop offset="55%" stop-color="#17263A"/>
+      <stop offset="100%" stop-color="#0E1826"/>
+    </radialGradient>
+    <path id="sealArc" d="M 286 730 a 88 88 0 1 1 -0.1 0" fill="none"/>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1600" height="1000" fill="#1A1714"/>
+
+  <!-- Deck header -->
+  <text x="40" y="58"><tspan class="serif" font-size="20" fill="#FBFAF7">Adrastea</tspan><tspan class="sans" font-size="12" letter-spacing="3" fill="#FBFAF7" fill-opacity="0.5" dx="12">/ BRAND SYSTEM</tspan></text>
+  <text x="1560" y="58" text-anchor="end" class="sans" font-size="12" letter-spacing="2" fill="#9E6B4B">v1.0 — MMXXVI</text>
+  <line x1="40" y1="74" x2="1560" y2="74" stroke="#FBFAF7" stroke-opacity="0.12"/>
+
+  <!-- ============ PANEL 1 — LOGO COVER (40,92) ============ -->
+  <rect x="40" y="92" width="492" height="273" rx="14" fill="#FBFAF7"/>
+  <text x="62" y="122" class="sans lbl">Identity</text>
+  <text x="510" y="122" text-anchor="end" class="sans lbl">01</text>
+  <use href="#mark" x="221" y="140" width="110" height="110" color="#23211C"/>
+  <text x="286" y="308" text-anchor="middle" class="serif" font-size="46" font-weight="600" fill="#23211C" letter-spacing="-0.5">Adrastea</text>
+  <text x="286" y="336" text-anchor="middle" class="sans" font-size="11" letter-spacing="5" fill="#9E6B4B">RESEARCH&#160;&#160;FOUNDATION</text>
+
+  <!-- ============ PANEL 2 — CONSTRUCTION (554,92) ============ -->
+  <rect x="554" y="92" width="492" height="273" rx="14" fill="#FBFAF7"/>
+  <text x="576" y="122" class="sans lbl">Construction</text>
+  <text x="1024" y="122" text-anchor="end" class="sans lbl">02</text>
+  <g stroke="#23211C" stroke-opacity="0.16" stroke-width="1">
+    <circle cx="800" cy="235" r="96" fill="none"/>
+    <line x1="800" y1="123" x2="800" y2="347"/>
+    <line x1="688" y1="235" x2="912" y2="235"/>
+    <line x1="704" y1="139" x2="704" y2="331" stroke-dasharray="3 4"/>
+    <line x1="896" y1="139" x2="896" y2="331" stroke-dasharray="3 4"/>
+  </g>
+  <use href="#mark" x="736" y="171" width="128" height="128" color="#23211C"/>
+  <g fill="#9E6B4B"><circle cx="800" cy="123" r="2.6"/><circle cx="704" cy="331" r="2.6"/><circle cx="896" cy="331" r="2.6"/></g>
+  <text x="576" y="345" class="sans" font-size="10" letter-spacing="1" fill="#23211C" fill-opacity="0.5">Apex + orbit crossbar + satellite · 1:1 grid</text>
+
+  <!-- ============ PANEL 3 — PRODUCT (1068,92) ============ -->
+  <rect x="1068" y="92" width="492" height="273" rx="14" fill="#F1EFE8"/>
+  <text x="1090" y="122" class="sans lbl">Product</text>
+  <text x="1538" y="122" text-anchor="end" class="sans lbl">03</text>
+  <g>
+    <rect x="1096" y="150" width="436" height="191" rx="9" fill="#FBFAF7" stroke="#23211C" stroke-opacity="0.10"/>
+    <line x1="1096" y1="178" x2="1532" y2="178" stroke="#23211C" stroke-opacity="0.08"/>
+    <circle cx="1110" cy="164" r="3" fill="#9E6B4B"/><circle cx="1122" cy="164" r="3" fill="#23211C" fill-opacity="0.25"/><circle cx="1134" cy="164" r="3" fill="#23211C" fill-opacity="0.25"/>
+    <rect x="1360" y="158" width="160" height="12" rx="6" fill="#23211C" fill-opacity="0.06"/>
+    <text x="1112" y="204" class="serif" font-size="15" fill="#23211C">Adrastea</text>
+    <!-- metric tiles -->
+    <g>
+      <rect x="1110" y="216" width="132" height="56" rx="7" fill="#F1EFE8"/>
+      <rect x="1250" y="216" width="132" height="56" rx="7" fill="#F1EFE8"/>
+      <rect x="1390" y="216" width="132" height="56" rx="7" fill="#17263A"/>
+      <text x="1122" y="236" class="sans" font-size="8" letter-spacing="1.5" fill="#23211C" fill-opacity="0.5">FUNDING</text>
+      <text x="1122" y="260" class="serif" font-size="20" fill="#23211C">$1.24M</text>
+      <text x="1262" y="236" class="sans" font-size="8" letter-spacing="1.5" fill="#23211C" fill-opacity="0.5">PROJECTS</text>
+      <text x="1262" y="260" class="serif" font-size="20" fill="#23211C">42</text>
+      <text x="1402" y="236" class="sans" font-size="8" letter-spacing="1.5" fill="#FBFAF7" fill-opacity="0.6">SPENT</text>
+      <text x="1402" y="260" class="serif" font-size="20" fill="#FBFAF7">$838k</text>
+    </g>
+    <!-- mini bars -->
+    <g fill="#9E6B4B">
+      <rect x="1110" y="300" width="70" height="26" rx="3" opacity="0.9"/>
+      <rect x="1110" y="300" width="70" height="26" rx="3" fill="none"/>
+    </g>
+    <g fill="#23211C" fill-opacity="0.16">
+      <rect x="1200" y="286" width="34" height="40" rx="3"/>
+      <rect x="1244" y="298" width="34" height="28" rx="3"/>
+      <rect x="1288" y="290" width="34" height="36" rx="3"/>
+      <rect x="1332" y="306" width="34" height="20" rx="3"/>
+    </g>
+    <rect x="1200" y="286" width="34" height="40" rx="3" fill="#9E6B4B"/>
+  </g>
+
+  <!-- ============ PANEL 4 — ESSENCE / TAGLINE (40,387) ============ -->
+  <rect x="40" y="387" width="492" height="273" rx="14" fill="#17263A"/>
+  <text x="62" y="417" class="sans lbld">Essence</text>
+  <text x="510" y="417" text-anchor="end" class="sans lbld">04</text>
+  <use href="#mark" x="62" y="437" width="40" height="40" color="#FBFAF7"/>
+  <text x="62" y="530" class="serif" font-size="44" font-weight="500" fill="#FBFAF7">Research,</text>
+  <text x="62" y="576" class="serif" font-size="44" font-weight="500" fill="#FBFAF7">held to <tspan fill="#C08A63">account.</tspan></text>
+  <text x="62" y="624" class="sans" font-size="13" fill="#FBFAF7" fill-opacity="0.6">Every grant, tracked to the cent.</text>
+
+  <!-- ============ PANEL 5 — PALETTE (554,387) ============ -->
+  <rect x="554" y="387" width="492" height="273" rx="14" fill="#FBFAF7"/>
+  <text x="576" y="417" class="sans lbl">Palette</text>
+  <text x="1024" y="417" text-anchor="end" class="sans lbl">05</text>
+  <g>
+    <!-- 5 chips -->
+    <g>
+      <rect x="576" y="435" width="80" height="150" rx="8" fill="#FBFAF7" stroke="#23211C" stroke-opacity="0.15"/>
+      <text x="576" y="608" class="sans" font-size="11" font-weight="600" fill="#23211C">Paper</text>
+      <text x="576" y="624" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">#FBFAF7</text>
+    </g>
+    <g>
+      <rect x="668" y="435" width="80" height="150" rx="8" fill="#23211C"/>
+      <text x="668" y="608" class="sans" font-size="11" font-weight="600" fill="#23211C">Ink</text>
+      <text x="668" y="624" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">#23211C</text>
+    </g>
+    <g>
+      <rect x="760" y="435" width="80" height="150" rx="8" fill="#9E6B4B"/>
+      <text x="760" y="608" class="sans" font-size="11" font-weight="600" fill="#23211C">Clay</text>
+      <text x="760" y="624" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">#9E6B4B</text>
+    </g>
+    <g>
+      <rect x="852" y="435" width="80" height="150" rx="8" fill="#17263A"/>
+      <text x="852" y="608" class="sans" font-size="11" font-weight="600" fill="#23211C">Midnight</text>
+      <text x="852" y="624" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">#17263A</text>
+    </g>
+    <g>
+      <rect x="944" y="435" width="80" height="150" rx="8" fill="#E7E3D8"/>
+      <text x="944" y="608" class="sans" font-size="11" font-weight="600" fill="#23211C">Stone</text>
+      <text x="944" y="624" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">#E7E3D8</text>
+    </g>
+  </g>
+
+  <!-- ============ PANEL 6 — TYPOGRAPHY (1068,387) ============ -->
+  <rect x="1068" y="387" width="492" height="273" rx="14" fill="#FBFAF7"/>
+  <text x="1090" y="417" class="sans lbl">Typography</text>
+  <text x="1538" y="417" text-anchor="end" class="sans lbl">06</text>
+  <text x="1090" y="530" class="serif" font-size="118" font-weight="600" fill="#23211C">Aa</text>
+  <line x1="1300" y1="452" x2="1300" y2="560" stroke="#23211C" stroke-opacity="0.12"/>
+  <text x="1322" y="474" class="serif" font-size="22" fill="#23211C">Fraunces</text>
+  <text x="1322" y="494" class="sans" font-size="10" letter-spacing="1.5" fill="#9E6B4B">DISPLAY · SERIF</text>
+  <text x="1322" y="536" class="sans" font-size="22" font-weight="600" fill="#23211C">Inter</text>
+  <text x="1322" y="556" class="sans" font-size="10" letter-spacing="1.5" fill="#9E6B4B">INTERFACE · SANS</text>
+  <text x="1090" y="600" class="sans" font-size="14" fill="#23211C" fill-opacity="0.55">ABCDEFGHIJKLM · abcdefghijk · 0123456789 · $€</text>
+
+  <!-- ============ PANEL 7 — SEAL (40,682) ============ -->
+  <rect x="40" y="682" width="492" height="273" rx="14" fill="#E7E3D8"/>
+  <text x="62" y="712" class="sans lbl">Seal</text>
+  <text x="510" y="712" text-anchor="end" class="sans lbl">07</text>
+  <g>
+    <circle cx="286" cy="818" r="88" fill="none" stroke="#23211C" stroke-opacity="0.35" stroke-width="1.4"/>
+    <circle cx="286" cy="818" r="78" fill="none" stroke="#23211C" stroke-opacity="0.2" stroke-width="1"/>
+    <text class="sans" font-size="10.5" letter-spacing="4.5" fill="#23211C" fill-opacity="0.7">
+      <textPath href="#sealArc" startOffset="0%">RESEARCH · FINANCE · STEWARDSHIP · </textPath>
+    </text>
+    <use href="#mark" x="252" y="778" width="68" height="68" color="#23211C"/>
+    <text x="286" y="874" text-anchor="middle" class="sans" font-size="9" letter-spacing="3" fill="#9E6B4B">MMXXVI</text>
+  </g>
+
+  <!-- ============ PANEL 8 — ATMOSPHERE (554,682) ============ -->
+  <rect x="554" y="682" width="492" height="273" rx="14" fill="url(#sky)"/>
+  <text x="576" y="712" class="sans lbld">Atmosphere</text>
+  <text x="1024" y="712" text-anchor="end" class="sans lbld">08</text>
+  <g fill="#FBFAF7">
+    <circle cx="612" cy="736" r="1.2" opacity="0.8"/><circle cx="690" cy="720" r="0.9" opacity="0.5"/>
+    <circle cx="760" cy="748" r="1.4" opacity="0.9"/><circle cx="840" cy="722" r="1" opacity="0.6"/>
+    <circle cx="928" cy="742" r="1.2" opacity="0.7"/><circle cx="988" cy="726" r="0.8" opacity="0.5"/>
+    <circle cx="600" cy="800" r="0.9" opacity="0.5"/><circle cx="980" cy="812" r="1.1" opacity="0.7"/>
+    <circle cx="640" cy="900" r="1" opacity="0.6"/><circle cx="900" cy="912" r="0.9" opacity="0.5"/>
+    <circle cx="1006" cy="880" r="1.3" opacity="0.8"/><circle cx="726" cy="906" r="0.8" opacity="0.5"/>
+  </g>
+  <ellipse cx="800" cy="818" rx="170" ry="52" fill="none" stroke="#9E6B4B" stroke-opacity="0.55" stroke-width="1.4" transform="rotate(-14 800 818)"/>
+  <circle cx="800" cy="836" r="46" fill="#0E1826" stroke="#3A5169" stroke-width="1"/>
+  <path d="M800 790 a46 46 0 0 1 0 92" fill="#26384C"/>
+  <circle cx="947" cy="792" r="7" fill="#C08A63"/>
+  <text x="576" y="936" class="serif" font-size="12" font-style="italic" fill="#FBFAF7" fill-opacity="0.6">Adrastea — an inner moon, held in exact orbit.</text>
+
+  <!-- ============ PANEL 9 — SYSTEM (1068,682) ============ -->
+  <rect x="1068" y="682" width="492" height="273" rx="14" fill="#FBFAF7"/>
+  <text x="1090" y="712" class="sans lbl">System</text>
+  <text x="1538" y="712" text-anchor="end" class="sans lbl">09</text>
+  <!-- app icon states -->
+  <g>
+    <rect x="1090" y="730" width="72" height="72" rx="16" fill="#FBFAF7" stroke="#23211C" stroke-opacity="0.15"/>
+    <use href="#mark" x="1104" y="744" width="44" height="44" color="#23211C"/>
+    <rect x="1178" y="730" width="72" height="72" rx="16" fill="#17263A"/>
+    <use href="#mark" x="1192" y="744" width="44" height="44" color="#FBFAF7"/>
+    <rect x="1266" y="730" width="72" height="72" rx="16" fill="#9E6B4B"/>
+    <use href="#mark" x="1280" y="744" width="44" height="44" color="#FBFAF7"/>
+    <text x="1090" y="822" class="sans" font-size="9" letter-spacing="1" fill="#23211C" fill-opacity="0.45">APP ICON · FAVICON · AVATAR</text>
+  </g>
+  <!-- status pills -->
+  <g class="sans" font-size="10" font-weight="600" letter-spacing="1">
+    <rect x="1090" y="846" width="86" height="26" rx="13" fill="#E7E3D8"/>
+    <text x="1133" y="863" text-anchor="middle" fill="#23211C" fill-opacity="0.7">PENDING</text>
+    <rect x="1186" y="846" width="96" height="26" rx="13" fill="#17263A"/>
+    <text x="1234" y="863" text-anchor="middle" fill="#FBFAF7">SUBMITTED</text>
+    <rect x="1292" y="846" width="92" height="26" rx="13" fill="#9E6B4B"/>
+    <text x="1338" y="863" text-anchor="middle" fill="#FBFAF7">APPROVED</text>
+  </g>
+  <text x="1090" y="912" class="sans" font-size="10" fill="#23211C" fill-opacity="0.5">Wordmark · mark · seal · icon — one system, every surface.</text>
+
+  <!-- Footer -->
+  <text x="40" y="984" class="sans" font-size="11" letter-spacing="1" fill="#FBFAF7" fill-opacity="0.45">adrastea.org</text>
+  <text x="800" y="984" text-anchor="middle" class="sans" font-size="11" letter-spacing="3" fill="#FBFAF7" fill-opacity="0.35">RESEARCH FUNDING &amp; FINANCE ECOSYSTEM</text>
+  <text x="1560" y="984" text-anchor="end" class="sans" font-size="11" letter-spacing="1" fill="#FBFAF7" fill-opacity="0.45">01 — Identity System</text>
+</svg>
