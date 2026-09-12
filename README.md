@@ -22,6 +22,13 @@ New sign-ups start as **pending** (no access) until an admin grants a role.
 | `finance`  | Review/approve/reject proposals, record any transaction (incl. income & org-general), full dashboards |
 | `admin`    | Everything above **+ assign roles** to people |
 
+## Get the app
+
+```bash
+git clone https://github.com/GarlicNaan798/adrastea-finance-ecosystem.git
+cd adrastea-finance-ecosystem
+```
+
 ## One-time setup
 
 1. **Create a Supabase project** (free tier is fine) at supabase.com.
