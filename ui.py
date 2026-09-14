@@ -2,11 +2,59 @@
 from __future__ import annotations
 
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 
 import core
 
 # Palette (kept in sync with .streamlit/config.toml and the brand kit)
 PAPER, INK, CLAY, NAVY, STONE = "#FBFAF7", "#23211C", "#9E6B4B", "#17263A", "#E7E3D8"
+
+# Persistent login: a rotating Supabase refresh token stored in a browser cookie,
+# so a hard refresh restores the session instead of logging out.
+_COOKIE = "adr_session"
+_COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
+
+
+def _cookies():
+    try:
+        return CookieController()
+    except Exception:  # cookie layer is always optional — never break login
+        return None
+
+
+def _save_session(ck, sess: dict) -> None:
+    if ck is not None:
+        try:
+            ck.set(_COOKIE, sess["refresh_token"], max_age=_COOKIE_MAX_AGE)
+        except Exception:
+            pass
+
+
+def _restore_session(ck) -> dict | None:
+    """Rebuild the user from the refresh-token cookie, if present and valid."""
+    if ck is None:
+        return None
+    try:
+        rt = ck.get(_COOKIE)
+    except Exception:
+        return None
+    if not rt:
+        return None
+    sess = core.refresh_session(rt)  # needs live Supabase; None if unreachable
+    if not sess:
+        try:
+            ck.remove(_COOKIE)
+        except Exception:
+            pass
+        return None
+    prof = core.get_profile(sess["id"])
+    st.session_state.user = {
+        **sess,
+        "name": prof["name"] if prof else sess["email"],
+        "role": prof["role"] if prof else "pending",
+    }
+    _save_session(ck, sess)  # persist the rotated token
+    return st.session_state.user
 
 
 def mark(size: int = 34, color: str = INK) -> str:
@@ -77,7 +125,7 @@ def page_header(title: str, overline: str | None = None) -> None:
     st.markdown(f"# {title}")
 
 
-def _auth_screen() -> None:
+def _auth_screen(ck) -> None:
     _, mid, _ = st.columns([1, 1.35, 1])
     with mid:
         st.markdown(
@@ -109,6 +157,7 @@ def _auth_screen() -> None:
                             "name": prof["name"] if prof else sess["email"],
                             "role": prof["role"] if prof else "pending",
                         }
+                        _save_session(ck, sess)  # remember me across refreshes
                         st.rerun()
 
         with signup:
@@ -127,11 +176,12 @@ def _auth_screen() -> None:
 def require_login() -> dict:
     """Render auth if needed; return the current user. Gates 'pending' accounts."""
     apply_style()
-    user = st.session_state.get("user")
+    ck = _cookies()
+    user = st.session_state.get("user") or _restore_session(ck)
     if not user:
-        _auth_screen()
+        _auth_screen(ck)
         st.stop()
-    _sidebar(user)
+    _sidebar(ck, user)
     if user["role"] == "pending":
         page_header("Awaiting access", "Adrastea")
         st.info("Your account is pending. An administrator will grant you a role "
@@ -146,7 +196,7 @@ def require_role(user: dict, *roles: str) -> None:
         st.stop()
 
 
-def _sidebar(user: dict) -> None:
+def _sidebar(ck, user: dict) -> None:
     with st.sidebar:
         st.markdown(
             f'<div class="brandbar">{mark(30)}<span class="name">Adrastea</span></div>',
@@ -154,5 +204,11 @@ def _sidebar(user: dict) -> None:
         st.markdown(f"**{user['name']}**")
         st.caption(f"{user['email']} · {user['role']}")
         if st.button("Sign out", use_container_width=True):
+            core.sign_out(user.get("access_token", ""))
+            if ck is not None:
+                try:
+                    ck.remove(_COOKIE)
+                except Exception:
+                    pass
             del st.session_state.user
             st.rerun()

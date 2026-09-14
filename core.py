@@ -125,17 +125,37 @@ def sign_up(email: str, password: str, name: str) -> tuple[bool, str]:
     return False, r.json().get("msg", r.text)
 
 
+def _session_from(d: dict) -> dict:
+    return {"access_token": d["access_token"], "refresh_token": d["refresh_token"],
+            "id": d["user"]["id"], "email": d["user"]["email"]}
+
+
 def sign_in(email: str, password: str) -> dict | None:
-    """Return {access_token, id, email} on success, else None."""
+    """Return {access_token, refresh_token, id, email} on success, else None."""
     r = requests.post(_auth_url("token?grant_type=password"),
                       headers=_auth_headers(),
                       json={"email": email.strip().lower(), "password": password},
                       timeout=15)
-    if not r.ok:
+    return _session_from(r.json()) if r.ok else None
+
+
+def refresh_session(refresh_token: str) -> dict | None:
+    """Exchange a stored refresh token for a fresh session (rotates the token)."""
+    try:
+        r = requests.post(_auth_url("token?grant_type=refresh_token"),
+                          headers=_auth_headers(),
+                          json={"refresh_token": refresh_token}, timeout=15)
+    except Exception:
         return None
-    d = r.json()
-    return {"access_token": d["access_token"], "id": d["user"]["id"],
-            "email": d["user"]["email"]}
+    return _session_from(r.json()) if r.ok else None
+
+
+def sign_out(access_token: str) -> None:
+    try:
+        requests.post(_auth_url("logout"), headers=_auth_headers(access_token),
+                      timeout=10)
+    except Exception:
+        pass
 
 
 def change_password(access_token: str, new_password: str) -> tuple[bool, str]:

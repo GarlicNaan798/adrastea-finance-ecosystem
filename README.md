@@ -81,9 +81,11 @@ Push to GitHub and deploy on [Streamlit Community Cloud](https://share.streamlit
 point it at `app.py`, and paste the same three secrets into the app's Secrets
 settings. Data persists in Supabase across restarts.
 
-## Known simplification
+## Sessions
 
-- **Session resets on a hard browser refresh** (Streamlit keeps the session in
-  `st.session_state`, not a cookie). Navigate via the sidebar links; a full
-  reload asks you to sign in again. Add a cookie component if that becomes
-  annoying.
+Login persists across hard refreshes: on sign-in the Supabase **refresh token**
+is stored in a browser cookie (`adr_session`, 30 days) and used to restore the
+session on load. Sign out clears the cookie and revokes the token. The cookie
+layer is fail-safe — if it's unavailable the app simply falls back to signing in
+each visit. The token cookie is readable by page scripts, so keep the app's HTML
+trusted (it only ever renders first-party markup).
