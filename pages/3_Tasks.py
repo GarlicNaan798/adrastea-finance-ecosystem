@@ -84,8 +84,8 @@ for p in assignable:
         c1.markdown(
             f'{t["title"]} — {core.TASK_LABELS.get(t["status"], t["status"])} · '
             f'{t["assignee_name"] or "unassigned"} · due {t["due_date"] or "—"}')
-        if c2.button("Delete", key=f"deltask_{t['id']}", width='stretch'):
-            core.delete_task(t["id"])
+        if c2.button("Archive", key=f"arctask_{t['id']}", width='stretch'):
+            core.archive_task(t["id"])
             st.rerun()
 if not any_tasks:
     st.caption("No tasks yet on your tracks.")

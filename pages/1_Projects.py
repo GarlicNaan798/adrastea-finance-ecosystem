@@ -148,9 +148,28 @@ def editor():
                 "description": r["Detail"], "amount": r["Amount"]}
                 for _, r in edited.iterrows()])
             st.success("Budget saved."); st.rerun()
-        with st.expander("Danger zone"):
-            if st.button("Delete project", width='stretch'):
-                core.delete_project(pid); st.warning("Deleted."); st.rerun()
+        with st.expander("Archive project"):
+            st.caption("Archiving hides the project but keeps everything (tasks, "
+                       "updates, budget). You can restore it any time. Nothing is "
+                       "permanently deleted.")
+            confirm = st.text_input("Type the project name to confirm",
+                                    key=f"arch_{pid}")
+            if st.button("Archive project", width='stretch',
+                         disabled=(confirm != ex["name"])):
+                core.archive_project(pid)
+                st.warning("Archived.")
+                st.rerun()
+
+    arch = [a for a in core.list_archived_projects() if manages(a["track"])]
+    if arch:
+        st.markdown("#### Archived (restore)")
+        for a in arch:
+            r1, r2 = st.columns([4, 1])
+            r1.write(f'{a["name"]} · {a["track"]}')
+            if r2.button("Restore", key=f"rest_{a['id']}", width='stretch'):
+                core.restore_project(a["id"])
+                st.success("Restored.")
+                st.rerun()
 
 
 if is_founder or owned or led:

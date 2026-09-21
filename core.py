@@ -319,19 +319,38 @@ def update_project(pid, name, description, requirements, status, track) -> None:
          (name.strip(), description, requirements, status, track, pid))
 
 
+def archive_project(pid) -> None:
+    """Soft-delete: hide the project but keep it (and its tasks/updates) intact."""
+    _run("UPDATE projects SET archived_at = %s WHERE id = %s", (now(), pid))
+
+
+def restore_project(pid) -> None:
+    _run("UPDATE projects SET archived_at = NULL WHERE id = %s", (pid,))
+
+
 def delete_project(pid) -> None:
+    """Hard delete (cascades). Not used by the UI — reserved for tests/cleanup."""
     _run("DELETE FROM projects WHERE id = %s", (pid,))
 
 
-def list_projects(status: str | None = None, track: str | None = None):
+def list_projects(status: str | None = None, track: str | None = None,
+                  include_archived: bool = False):
     sql = ("SELECT p.*, u.name AS director_name FROM projects p "
            "LEFT JOIN profiles u ON u.id = p.director_id WHERE TRUE")
     args = []
+    if not include_archived:
+        sql += " AND p.archived_at IS NULL"
     if status:
         sql += " AND p.status = %s"; args.append(status)
     if track:
         sql += " AND p.track = %s"; args.append(track)
     return _q(sql + " ORDER BY (p.status='complete'), p.track, p.name", args)
+
+
+def list_archived_projects():
+    return _q("SELECT p.*, u.name AS director_name FROM projects p "
+              "LEFT JOIN profiles u ON u.id = p.director_id "
+              "WHERE p.archived_at IS NOT NULL ORDER BY p.archived_at DESC")
 
 
 def get_project(pid: int):
@@ -401,10 +420,10 @@ def add_progress(project_id, author_id, title, status, note) -> int:
 def list_progress(project_id: int | None = None, limit: int | None = None):
     sql = ("SELECT g.*, u.name AS author_name, pr.name AS project_name, pr.track "
            "FROM progress_updates g LEFT JOIN profiles u ON u.id = g.author_id "
-           "JOIN projects pr ON pr.id = g.project_id")
+           "JOIN projects pr ON pr.id = g.project_id WHERE pr.archived_at IS NULL")
     args = []
     if project_id:
-        sql += " WHERE g.project_id = %s"; args.append(project_id)
+        sql += " AND g.project_id = %s"; args.append(project_id)
     sql += " ORDER BY g.created_at DESC, g.id DESC"
     if limit:
         sql += " LIMIT %s"; args.append(limit)
@@ -431,7 +450,8 @@ def create_task(project_id, title, description, assignee_id, due_date, created_b
 def list_tasks(project_id: int | None = None, assignee_id: str | None = None):
     sql = ("SELECT t.*, a.name AS assignee_name, pr.name AS project_name, pr.track "
            "FROM tasks t LEFT JOIN profiles a ON a.id = t.assignee_id "
-           "JOIN projects pr ON pr.id = t.project_id WHERE TRUE")
+           "JOIN projects pr ON pr.id = t.project_id "
+           "WHERE t.archived_at IS NULL AND pr.archived_at IS NULL")
     args = []
     if project_id:
         sql += " AND t.project_id = %s"; args.append(project_id)
@@ -446,5 +466,10 @@ def set_task_status(task_id: int, status: str) -> None:
     _run("UPDATE tasks SET status = %s WHERE id = %s", (status, task_id))
 
 
+def archive_task(task_id: int) -> None:
+    _run("UPDATE tasks SET archived_at = %s WHERE id = %s", (now(), task_id))
+
+
 def delete_task(task_id: int) -> None:
+    """Hard delete. Not used by the UI — reserved for tests/cleanup."""
     _run("DELETE FROM tasks WHERE id = %s", (task_id,))

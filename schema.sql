@@ -52,6 +52,7 @@ create table projects (
                  check (status in ('planning','active','on_hold','complete')),
     track        text,   -- one of core.TRACKS (validated in the app)
     director_id  uuid references profiles(id),
+    archived_at  text,   -- soft-delete: hidden but kept (nothing is hard-deleted)
     created_at   text not null
 );
 
@@ -113,6 +114,7 @@ create table tasks (
     assignee_id uuid references profiles(id),
     status      text not null default 'todo' check (status in ('todo','doing','done')),
     due_date    text,
+    archived_at text,   -- soft-delete
     created_by  uuid references profiles(id),
     created_at  text not null
 );
