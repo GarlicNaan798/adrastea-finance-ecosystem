@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import quote
 
 import psycopg2
 import psycopg2.extras
@@ -142,8 +143,15 @@ def _auth_headers(token: str | None = None) -> dict:
     return h
 
 
+def _redirect_suffix() -> str:
+    """Query suffix pointing email-confirmation links back at the app.
+    APP_URL must also be listed in Supabase → Auth → URL Configuration."""
+    url = _secret("APP_URL")
+    return f"?redirect_to={quote(url, safe='')}" if url else ""
+
+
 def sign_up(email: str, password: str, name: str) -> tuple[bool, str]:
-    r = requests.post(_auth_url("signup"), headers=_auth_headers(),
+    r = requests.post(_auth_url("signup") + _redirect_suffix(), headers=_auth_headers(),
                       json={"email": email.strip().lower(), "password": password,
                             "data": {"name": name.strip()}}, timeout=15)
     if r.ok:

@@ -36,6 +36,13 @@ def test_director_allowlist():
     assert core.role_for_email("") == "member"
 
 
+def test_redirect_suffix():
+    os.environ["APP_URL"] = "https://adrastea.streamlit.app/"
+    assert core._redirect_suffix() == \
+        "?redirect_to=https%3A%2F%2Fadrastea.streamlit.app%2F"
+    del os.environ["APP_URL"]
+
+
 def test_week_monday():
     wm = core.week_monday(date(2026, 9, 16))  # a Wednesday
     d = date.fromisoformat(wm)
