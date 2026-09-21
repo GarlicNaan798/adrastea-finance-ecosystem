@@ -1,4 +1,4 @@
-streamlit>=1.40
+streamlit>=1.62,<1.65   # native light/dark theming + width='stretch' need >=1.62
 pandas>=2.0
 psycopg2-binary>=2.9
 requests>=2.31
