@@ -4,6 +4,7 @@
 -- app tables (and their data) if you re-run it on a populated database.
 
 drop table if exists progress_updates cascade;
+drop table if exists project_links cascade;
 drop table if exists track_leads cascade;
 drop table if exists track_owners cascade;
 drop table if exists project_leads cascade;   -- legacy (replaced by track_leads)
@@ -87,4 +88,15 @@ create table track_leads (
 create table track_owners (
     track   text primary key,
     user_id uuid not null references profiles(id) on delete cascade
+);
+
+-- Document links attached to a project (e.g. Google Drive / Docs URLs). Files
+-- stay wherever they live; we just reference them.
+create table project_links (
+    id         bigint generated always as identity primary key,
+    project_id bigint not null references projects(id) on delete cascade,
+    label      text,
+    url        text not null,
+    added_by   uuid references profiles(id),
+    created_at text not null
 );

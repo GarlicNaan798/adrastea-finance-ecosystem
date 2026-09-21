@@ -48,6 +48,11 @@ def browse():
             if p["requirements"]:
                 st.markdown("**Requirements**")
                 st.write(p["requirements"])
+            links = core.list_project_links(p["id"])
+            if links:
+                st.markdown("**Documents**")
+                for l in links:
+                    st.markdown(f'- [{l["label"] or l["url"]}]({l["url"]})')
             bl = core.list_budget_lines(p["id"])
             if bl:
                 st.markdown("**Budget**")
@@ -115,6 +120,32 @@ def editor():
             core.update_project(pid, name, description, requirements, status, save_track)
         st.success("Saved.")
         st.rerun()
+
+    # --- Documents & links (anyone who can edit the project) ----------------
+    if ex and can_edit:
+        st.markdown("#### Documents & links")
+        st.caption("Attach Google Drive / Docs links (or any URL). Files stay "
+                   "where they live — nothing to migrate.")
+        for l in core.list_project_links(pid):
+            lc1, lc2 = st.columns([5, 1])
+            lc1.markdown(
+                f'[{l["label"] or l["url"]}]({l["url"]})  \n'
+                f'<span class="meta">added by {l["added_by_name"] or "—"}</span>',
+                unsafe_allow_html=True)
+            if lc2.button("Remove", key=f"rmlink_{l['id']}", width='stretch'):
+                core.delete_project_link(l["id"])
+                st.rerun()
+        with st.form(f"addlink_{pid}", clear_on_submit=True):
+            fc1, fc2 = st.columns([2, 3])
+            lbl = fc1.text_input("Label", placeholder="e.g. Q3 report")
+            link_url = fc2.text_input("URL", placeholder="https://drive.google.com/…")
+            if st.form_submit_button("Add link"):
+                if core.clean_url(link_url):
+                    core.add_project_link(pid, lbl, link_url, user["id"])
+                    st.success("Link added.")
+                    st.rerun()
+                else:
+                    st.error("Enter a valid http(s) URL.")
 
     if is_director and ex:
         st.markdown("#### Budget breakdown")

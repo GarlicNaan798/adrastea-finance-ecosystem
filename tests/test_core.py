@@ -55,6 +55,16 @@ def test_can_edit_project_role():
     assert core.can_edit_project_role("member", False) is False   # plain member
 
 
+def test_clean_url():
+    assert core.clean_url("https://drive.google.com/x") == "https://drive.google.com/x"
+    assert core.clean_url("http://x.org") == "http://x.org"
+    assert core.clean_url("  https://x.org/y  ") == "https://x.org/y"
+    assert core.clean_url("javascript:alert(1)") is None  # XSS guard
+    assert core.clean_url("ftp://x.org/f") is None
+    assert core.clean_url("not a url") is None
+    assert core.clean_url("") is None
+
+
 def test_redirect_suffix():
     os.environ["APP_URL"] = "https://adrastea.streamlit.app/"
     assert core._redirect_suffix() == \

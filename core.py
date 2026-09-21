@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import date, datetime, timedelta, timezone
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import psycopg2
 import psycopg2.extras
@@ -327,6 +327,34 @@ def can_edit_project_role(role: str, is_track_lead: bool) -> bool:
     progress. Directors and specialists edit any track; a member edits only
     projects in a track they lead. Budget/create/delete stay director-only."""
     return role in ("director", "specialist") or is_track_lead
+
+
+# --- Documents / links (attach existing files, e.g. Google Drive) ------------
+def clean_url(url: str) -> str | None:
+    """Return the URL if it's a safe http(s) link, else None."""
+    u = (url or "").strip()
+    p = urlparse(u)
+    return u if p.scheme in ("http", "https") and p.netloc else None
+
+
+def add_project_link(project_id: int, label: str, url: str, added_by: str) -> int:
+    u = clean_url(url)
+    if not u:
+        raise ValueError("Only http(s) links are allowed.")
+    return _insert(
+        "INSERT INTO project_links (project_id, label, url, added_by, created_at) "
+        "VALUES (%s,%s,%s,%s,%s)",
+        (project_id, (label or u).strip(), u, added_by, now()))
+
+
+def list_project_links(project_id: int):
+    return _q("SELECT l.*, u.name AS added_by_name FROM project_links l "
+              "LEFT JOIN profiles u ON u.id = l.added_by WHERE l.project_id = %s "
+              "ORDER BY l.id", (project_id,))
+
+
+def delete_project_link(link_id: int) -> None:
+    _run("DELETE FROM project_links WHERE id = %s", (link_id,))
 
 
 # --- Budget lines (director-only, per project) ------------------------------

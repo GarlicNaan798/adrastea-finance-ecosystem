@@ -70,7 +70,7 @@ member/director ──>  weekly progress update (status + note)  ──>  Timeli
 ## Layout
 
 - `app.py` — overview (projects at a glance + recent progress)
-- `pages/1_Projects.py` — browse projects; directors create/edit/budget/assign leads; specialists & leads edit details
+- `pages/1_Projects.py` — browse projects; directors create/edit/budget; specialists & leads edit details; attach document links (Google Drive / Docs)
 - `pages/2_Progress.py` — post a weekly update; team timeline
 - `pages/3_Account.py` — your role + change password
 - `pages/4_Team.py` — directors promote members ↔ specialists
