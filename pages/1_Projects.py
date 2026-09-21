@@ -1,4 +1,6 @@
-"""Projects: everyone browses; directors set projects, requirements, budgets."""
+"""Projects. Everyone browses. Directors create/delete, set budgets, assign
+leads. Specialists and a project's assigned leads can edit its details,
+requirements, status and progress (not the budget)."""
 import pandas as pd
 import streamlit as st
 
@@ -9,11 +11,17 @@ st.set_page_config(page_title="Projects · Adrastea", page_icon="🌘", layout="
 user = ui.require_login()
 ui.page_header("Projects", "Portfolio")
 
-is_director = user["role"] == "director"
+role = user["role"]
+is_director = role == "director"
+my_leads = core.lead_project_ids(user["id"])
 
 
 def _fmt_status(s: str) -> str:
     return s.replace("_", " ").title()
+
+
+def _can_edit(project) -> bool:
+    return core.can_edit_project_role(role, project["id"] in my_leads)
 
 
 def browse():
@@ -22,6 +30,8 @@ def browse():
         st.info("No projects yet.")
         return
     for p in projects:
+        leads = core.list_project_leads(p["id"])
+        lead_names = ", ".join(l["name"] for l in leads) or "—"
         with st.expander(f'{p["name"]}  ·  {_fmt_status(p["status"])}  ·  '
                          f'{p["director_name"] or "—"}'):
             if p["description"]:
@@ -29,6 +39,8 @@ def browse():
             if p["requirements"]:
                 st.markdown("**Requirements**")
                 st.write(p["requirements"])
+            st.markdown(f'<span class="meta">Leads: {lead_names}</span>',
+                        unsafe_allow_html=True)
             bl = core.list_budget_lines(p["id"])
             if bl:
                 st.markdown("**Budget**")
@@ -50,61 +62,99 @@ def browse():
 
 
 def editor():
-    ui.require_role(user, "director")
-    mine = core.list_projects()
-    choices = {"➕ New project": None} | {f'{p["name"]} (#{p["id"]})': p["id"]
-                                          for p in mine}
+    projects = core.list_projects()
+    # Directors & specialists may edit any project; a lead only their own.
+    if is_director or role == "specialist":
+        pickable = projects
+    else:
+        pickable = [p for p in projects if p["id"] in my_leads]
+
+    choices = {}
+    if is_director:
+        choices["➕ New project"] = None
+    choices |= {f'{p["name"]} (#{p["id"]})': p["id"] for p in pickable}
+    if not choices:
+        st.info("Nothing to edit yet.")
+        return
+
     pick = st.selectbox("Project", list(choices), key="proj_pick")
     pid = choices[pick]
     ex = core.get_project(pid) if pid else None
+    can_edit = is_director or role == "specialist" or (pid in my_leads if pid else False)
 
-    name = st.text_input("Name", value=ex["name"] if ex else "")
-    c1, c2 = st.columns(2)
-    status = c1.selectbox("Status", list(core.PROJECT_STATUSES),
-                          index=list(core.PROJECT_STATUSES).index(ex["status"]) if ex else 1,
-                          format_func=_fmt_status)
+    # --- Details (directors, specialists, that project's leads) --------------
+    name = st.text_input("Name", value=ex["name"] if ex else "", disabled=not can_edit)
+    status = st.selectbox(
+        "Status", list(core.PROJECT_STATUSES),
+        index=list(core.PROJECT_STATUSES).index(ex["status"]) if ex else 1,
+        format_func=_fmt_status, disabled=not can_edit)
     description = st.text_area("Description", value=ex["description"] if ex else "",
-                              height=90)
+                              height=90, disabled=not can_edit)
     requirements = st.text_area("Requirements — what the project needs to succeed",
-                               value=ex["requirements"] if ex else "", height=110)
+                               value=ex["requirements"] if ex else "", height=110,
+                               disabled=not can_edit)
 
-    st.markdown("#### Budget breakdown")
-    st.caption("Category, how it's spent, and amount. Directors only.")
-    existing = ([{"Category": b["category"], "Detail": b["description"],
-                  "Amount": b["amount"]} for b in core.list_budget_lines(pid)]
-                if ex else [])
-    base = pd.DataFrame(existing or [{"Category": core.CATEGORIES[0],
-                                      "Detail": "", "Amount": 0.0}])
-    edited = st.data_editor(
-        base, num_rows="dynamic", width='stretch', key="budget_ed",
-        column_config={
-            "Category": st.column_config.SelectboxColumn(
-                options=list(core.CATEGORIES), required=True),
-            "Detail": st.column_config.TextColumn(width="large"),
-            "Amount": st.column_config.NumberColumn(
-                format=f"{core.CURRENCY}%.2f", min_value=0.0)})
-    st.metric("Total budget", core.money(float(edited["Amount"].fillna(0).sum())))
-
-    b1, b2 = st.columns(2)
-    if b1.button("Save project", type="primary", width='stretch',
-                 disabled=not name):
-        lines = [{"category": r["Category"], "description": r["Detail"],
-                  "amount": r["Amount"]} for _, r in edited.iterrows()]
+    if st.button("Save details", type="primary", width='stretch',
+                 disabled=not (can_edit and name)):
         if not pid:
-            pid = core.create_project(name, description, requirements, status,
-                                      user["id"])
+            pid = core.create_project(name, description, requirements, status, user["id"])
         else:
             core.update_project(pid, name, description, requirements, status)
-        core.set_budget_lines(pid, lines)
         st.success("Saved.")
         st.rerun()
-    if ex and b2.button("Delete project", width='stretch'):
-        core.delete_project(pid)
-        st.warning("Project deleted.")
-        st.rerun()
+
+    # --- Budget (directors only) --------------------------------------------
+    if is_director and ex:
+        st.markdown("#### Budget breakdown")
+        st.caption("Category, how it's spent, and amount. Directors only.")
+        rows = [{"Category": b["category"], "Detail": b["description"],
+                 "Amount": b["amount"]} for b in core.list_budget_lines(pid)]
+        base = pd.DataFrame(rows or [{"Category": core.CATEGORIES[0],
+                                      "Detail": "", "Amount": 0.0}])
+        edited = st.data_editor(
+            base, num_rows="dynamic", width='stretch', key=f"budget_ed_{pid}",
+            column_config={
+                "Category": st.column_config.SelectboxColumn(
+                    options=list(core.CATEGORIES), required=True),
+                "Detail": st.column_config.TextColumn(width="large"),
+                "Amount": st.column_config.NumberColumn(
+                    format=f"{core.CURRENCY}%.2f", min_value=0.0)})
+        st.metric("Total budget", core.money(float(edited["Amount"].fillna(0).sum())))
+        if st.button("Save budget", width='stretch'):
+            core.set_budget_lines(pid, [
+                {"category": r["Category"], "description": r["Detail"],
+                 "amount": r["Amount"]} for _, r in edited.iterrows()])
+            st.success("Budget saved.")
+            st.rerun()
+
+    # --- Leads + delete (directors only) ------------------------------------
+    if is_director and ex:
+        st.markdown("#### Leads")
+        st.caption("Assigned leads can edit this project's details, requirements, "
+                   "status and progress.")
+        people = {f'{u["name"]} · {u["email"]}': u["id"] for u in core.list_profiles()}
+        current = {l["user_id"] for l in core.list_project_leads(pid)}
+        default = [lbl for lbl, uid in people.items() if uid in current]
+        chosen = st.multiselect("Project leads", list(people), default=default,
+                                key=f"leads_{pid}")
+        if st.button("Save leads", width='stretch'):
+            chosen_ids = {people[l] for l in chosen}
+            for uid in chosen_ids - current:
+                core.assign_lead(pid, uid)
+            for uid in current - chosen_ids:
+                core.remove_lead(pid, uid)
+            st.success("Leads updated.")
+            st.rerun()
+
+        with st.expander("Danger zone"):
+            if st.button("Delete project", width='stretch'):
+                core.delete_project(pid)
+                st.warning("Project deleted.")
+                st.rerun()
 
 
-if is_director:
+show_editor = is_director or role == "specialist" or bool(my_leads)
+if show_editor:
     t_browse, t_edit = st.tabs(["All projects", "Create / edit"])
     with t_browse:
         browse()
@@ -112,4 +162,5 @@ if is_director:
         editor()
 else:
     browse()
-    st.caption("Only directors can create or edit projects.")
+    st.caption("Directors create projects and assign leads. Ask a director to be "
+               "made a lead or specialist to edit projects.")

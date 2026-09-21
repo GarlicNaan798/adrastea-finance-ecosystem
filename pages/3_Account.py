@@ -9,13 +9,16 @@ user = ui.require_login()
 ui.page_header("Account", "Settings")
 
 st.write(f"**{user['name']}** · {user['email']}")
-st.write(f"Role: **{user['role']}**")
-if user["role"] == "director":
-    st.caption("As a director you can create and edit projects, requirements and "
-               "budgets on the Projects page.")
-else:
-    st.caption("Members can view projects and post weekly progress. Directors are "
-               "set by the organisation; ask an admin to be added.")
+st.write(f"Role: **{core.ROLE_LABELS.get(user['role'], user['role'])}**")
+_ROLE_NOTE = {
+    "director": "As a director you can create/delete projects, set budgets, assign "
+                "leads, and promote specialists (Team page).",
+    "specialist": "As a specialist you can edit any project's details, "
+                  "requirements, status and progress. Budgets stay director-only.",
+    "member": "You can view projects and post weekly progress. A director can make "
+              "you a project **lead** (edit that project) or a **specialist**.",
+}
+st.caption(_ROLE_NOTE.get(user["role"], _ROLE_NOTE["member"]))
 
 st.divider()
 st.subheader("Change my password")

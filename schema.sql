@@ -4,6 +4,7 @@
 -- app tables (and their data) if you re-run it on a populated database.
 
 drop table if exists progress_updates cascade;
+drop table if exists project_leads cascade;
 drop table if exists budget_lines cascade;
 drop table if exists projects cascade;
 -- legacy tables from the previous (finance) version, if present:
@@ -17,7 +18,8 @@ create table profiles (
     id    uuid primary key references auth.users(id) on delete cascade,
     email text,
     name  text,
-    role  text not null default 'member' check (role in ('member','director')),
+    role  text not null default 'member'
+          check (role in ('member','specialist','director')),
     created_at timestamptz not null default now()
 );
 
@@ -67,3 +69,12 @@ create table progress_updates (
     created_at text not null
 );
 create index if not exists progress_by_project on progress_updates(project_id, week_start desc);
+
+-- Per-project leads. Directors assign these; a lead can edit their project's
+-- details/requirements/status/progress (not the budget).
+create table project_leads (
+    project_id bigint not null references projects(id) on delete cascade,
+    user_id    uuid not null references profiles(id) on delete cascade,
+    created_at text not null,
+    primary key (project_id, user_id)
+);

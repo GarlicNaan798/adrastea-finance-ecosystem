@@ -36,6 +36,19 @@ def test_director_allowlist():
     assert core.role_for_email("") == "member"
 
 
+def test_roles_and_tiers():
+    assert core.ROLES == ("member", "specialist", "director")
+    assert core.ASSIGNABLE_TIERS == ("member", "specialist")
+    assert "director" not in core.ASSIGNABLE_TIERS  # director is allowlist-only
+
+
+def test_can_edit_project_role():
+    assert core.can_edit_project_role("director", False) is True
+    assert core.can_edit_project_role("specialist", False) is True
+    assert core.can_edit_project_role("member", True) is True     # assigned lead
+    assert core.can_edit_project_role("member", False) is False   # plain member
+
+
 def test_redirect_suffix():
     os.environ["APP_URL"] = "https://adrastea.streamlit.app/"
     assert core._redirect_suffix() == \

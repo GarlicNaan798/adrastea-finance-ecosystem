@@ -17,7 +17,9 @@ import requests
 # --- Config -----------------------------------------------------------------
 CURRENCY = "$"  # one-line change for € etc.
 
-ROLES = ("member", "director")
+ROLES = ("member", "specialist", "director")
+ASSIGNABLE_TIERS = ("member", "specialist")  # what a director can set in-app
+ROLE_LABELS = {"member": "Member", "specialist": "Specialist", "director": "Director"}
 
 # Budget line categories (directors set these per project).
 CATEGORIES = (
@@ -205,9 +207,19 @@ def get_profile(uid: str):
 
 
 def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
-    """Ensure a profile row exists and its role matches the director allowlist.
-    Called on every login, so editing the allowlist takes effect next sign-in."""
-    role = role_for_email(email)
+    """Ensure a profile row exists and reconcile its role on every login.
+
+    The director allowlist always wins. Otherwise an in-app 'specialist'
+    promotion is preserved; everyone else is a 'member'. (So logging in never
+    silently demotes a specialist, but dropping someone from the allowlist does
+    demote them from director.)"""
+    prof = get_profile(uid)
+    if email and email.strip().lower() in director_emails():
+        role = "director"
+    elif prof and prof["role"] == "specialist":
+        role = "specialist"
+    else:
+        role = "member"
     _run("INSERT INTO profiles (id, email, name, role) VALUES (%s,%s,%s,%s) "
          "ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, "
          "name = COALESCE(EXCLUDED.name, profiles.name)",
@@ -215,8 +227,18 @@ def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
     return get_profile(uid)
 
 
+def set_tier(uid: str, tier: str) -> None:
+    """Director action: promote/demote a person between member and specialist.
+    Directors come from the allowlist and can't be set here."""
+    if tier not in ASSIGNABLE_TIERS:
+        raise ValueError(tier)
+    _run("UPDATE profiles SET role = %s WHERE id = %s AND role <> 'director'",
+         (tier, uid))
+
+
 def list_profiles():
-    return _q("SELECT * FROM profiles ORDER BY role DESC, name")
+    return _q("SELECT * FROM profiles ORDER BY "
+              "CASE role WHEN 'director' THEN 0 WHEN 'specialist' THEN 1 ELSE 2 END, name")
 
 
 # --- Projects (directors set these) -----------------------------------------
@@ -249,6 +271,36 @@ def list_projects(status: str | None = None):
 def get_project(pid: int):
     return _one("SELECT p.*, u.name AS director_name FROM projects p "
                 "LEFT JOIN profiles u ON u.id = p.director_id WHERE p.id = %s", (pid,))
+
+
+# --- Project leads + permissions --------------------------------------------
+def assign_lead(project_id: int, user_id: str) -> None:
+    _run("INSERT INTO project_leads (project_id, user_id, created_at) "
+         "VALUES (%s,%s,%s) ON CONFLICT (project_id, user_id) DO NOTHING",
+         (project_id, user_id, now()))
+
+
+def remove_lead(project_id: int, user_id: str) -> None:
+    _run("DELETE FROM project_leads WHERE project_id = %s AND user_id = %s",
+         (project_id, user_id))
+
+
+def list_project_leads(project_id: int):
+    return _q("SELECT pl.user_id, u.name, u.email FROM project_leads pl "
+              "JOIN profiles u ON u.id = pl.user_id WHERE pl.project_id = %s "
+              "ORDER BY u.name", (project_id,))
+
+
+def lead_project_ids(user_id: str) -> set:
+    rows = _q("SELECT project_id FROM project_leads WHERE user_id = %s", (user_id,))
+    return {r["project_id"] for r in rows}
+
+
+def can_edit_project_role(role: str, is_lead: bool) -> bool:
+    """Pure permission rule: who may edit a project's details/requirements/
+    status/progress. Directors and specialists edit any project; a member edits
+    a project only if assigned as its lead. Budget stays director-only."""
+    return role in ("director", "specialist") or is_lead
 
 
 # --- Budget lines (director-only, per project) ------------------------------

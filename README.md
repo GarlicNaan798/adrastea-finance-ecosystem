@@ -9,13 +9,18 @@ A Streamlit app (Supabase backend) where a research team runs its work:
 
 ## Roles
 
-Roles are assigned automatically from an email allowlist on every sign-in — no
-approval step:
+Tiers, from most to least access:
 
 | Role | Set by | Can do |
 |------|--------|--------|
-| `director` | email is in `DIRECTOR_EMAILS` | create/edit projects, requirements and budgets; everything a member can do |
-| `member`   | any other registered email | view projects and budgets; post weekly progress updates |
+| `director`   | email is in `DIRECTOR_EMAILS` | everything: create/delete projects, set budgets, assign leads, promote specialists |
+| `specialist` | a director promotes them (Team page) | edit **any** project's details, requirements, status and progress (not budgets) |
+| `member`     | any other registered email | view projects/budgets, post weekly progress |
+| **lead** | a director assigns them to a project | *(per-project hat, on top of their tier)* edit **that** project's details, requirements, status and progress |
+
+Directors and specialists are reconciled on every sign-in; a specialist promotion
+is preserved across logins, and removing someone from `DIRECTOR_EMAILS` demotes
+them on their next sign-in.
 
 ## Get the app
 
@@ -58,9 +63,11 @@ member/director ──>  weekly progress update (status + note)  ──>  Timeli
 ## Layout
 
 - `app.py` — overview (projects at a glance + recent progress)
-- `pages/1_Projects.py` — browse projects; directors create/edit + budget
+- `pages/1_Projects.py` — browse projects; directors create/edit/budget/assign leads; specialists & leads edit details
 - `pages/2_Progress.py` — post a weekly update; team timeline
 - `pages/3_Account.py` — your role + change password
+- `pages/4_Team.py` — directors promote members ↔ specialists
+- `migrations/` — additive SQL migrations for an already-populated database
 - `core.py` — Postgres data access, GoTrue auth, director allowlist
 - `schema.sql` — Supabase Postgres schema (run once)
 - `tests/test_core.py` — offline checks; `tests/smoke_live.py` — live end-to-end
