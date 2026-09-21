@@ -5,6 +5,7 @@
 
 drop table if exists comments cascade;
 drop table if exists milestones cascade;
+drop table if exists task_links cascade;
 drop table if exists tasks cascade;
 drop table if exists progress_updates cascade;
 drop table if exists project_links cascade;
@@ -121,6 +122,16 @@ create table tasks (
     created_at  text not null
 );
 create index if not exists tasks_by_assignee on tasks(assignee_id);
+
+-- Link-based attachments on a task (files stay where they live).
+create table task_links (
+    id         bigint generated always as identity primary key,
+    task_id    bigint not null references tasks(id) on delete cascade,
+    label      text,
+    url        text not null,
+    added_by   uuid references profiles(id),
+    created_at text not null
+);
 
 -- Milestones / deadlines per project (feed the calendar).
 create table milestones (

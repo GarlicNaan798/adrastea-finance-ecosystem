@@ -21,6 +21,28 @@ def can_assign(track) -> bool:
     return is_founder or track in owned or track in led
 
 
+def attachments(task, can_edit):
+    links = core.list_task_links(task["id"])
+    with st.expander(f'Attachments ({len(links)})'):
+        for l in links:
+            a, b = st.columns([5, 1])
+            a.markdown(f'[{l["label"] or l["url"]}]({l["url"]})')
+            if can_edit and b.button("Remove", key=f"tlrm_{l['id']}", width='stretch'):
+                core.delete_task_link(l["id"]); st.rerun()
+        if can_edit:
+            with st.form(f"tl_{task['id']}", clear_on_submit=True):
+                fa, fb = st.columns([2, 3])
+                lbl = fa.text_input("Label", placeholder="e.g. spec doc")
+                u = fb.text_input("URL", placeholder="https://…")
+                if st.form_submit_button("Add link"):
+                    if core.clean_url(u):
+                        core.add_task_link(task["id"], lbl, u, uid); st.rerun()
+                    else:
+                        st.error("Enter a valid http(s) URL.")
+        elif not links:
+            st.caption("No attachments.")
+
+
 # --- My tasks ---------------------------------------------------------------
 with st.container(border=True):
     st.subheader("My tasks")
@@ -39,6 +61,7 @@ with st.container(border=True):
                      disabled=(ns == t["status"])):
             core.set_task_status(t["id"], ns)
             st.rerun()
+        attachments(t, True)
         ui.comment_thread("task", t["id"], user, True)
 
 projects = core.list_projects()
@@ -88,7 +111,8 @@ for p in assignable:
         if c2.button("Archive", key=f"arctask_{t['id']}", width='stretch'):
             core.archive_task(t["id"])
             st.rerun()
-        ui.comment_thread("task", t["id"], user,
-                          can_assign(p["track"]) or t["assignee_id"] == uid)
+        _ce = can_assign(p["track"]) or t["assignee_id"] == uid
+        attachments(t, _ce)
+        ui.comment_thread("task", t["id"], user, _ce)
 if not any_tasks:
     st.caption("No tasks yet on your tracks.")

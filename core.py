@@ -475,6 +475,23 @@ def delete_task(task_id: int) -> None:
     _run("DELETE FROM tasks WHERE id = %s", (task_id,))
 
 
+def add_task_link(task_id: int, label: str, url: str, added_by: str) -> int:
+    u = clean_url(url)
+    if not u:
+        raise ValueError("Only http(s) links are allowed.")
+    return _insert("INSERT INTO task_links (task_id, label, url, added_by, created_at) "
+                   "VALUES (%s,%s,%s,%s,%s)",
+                   (task_id, (label or u).strip(), u, added_by, now()))
+
+
+def list_task_links(task_id: int):
+    return _q("SELECT * FROM task_links WHERE task_id = %s ORDER BY id", (task_id,))
+
+
+def delete_task_link(link_id: int) -> None:
+    _run("DELETE FROM task_links WHERE id = %s", (link_id,))
+
+
 # --- Milestones / deadlines (feed the calendar) -----------------------------
 def add_milestone(project_id: int, title: str, due_date: str | None) -> int:
     return _insert("INSERT INTO milestones (project_id, title, due_date, created_at) "
