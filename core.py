@@ -1,7 +1,7 @@
 """Adrastea backend: Supabase Postgres (data) + Supabase Auth / GoTrue (login).
 
 Config comes from st.secrets (or env vars) — see .streamlit/secrets.toml.example:
-    SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL, DIRECTOR_EMAILS
+    SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL, DIRECTOR_EMAILS, FOUNDER_EMAILS
 """
 from __future__ import annotations
 
@@ -17,34 +17,28 @@ import requests
 # --- Config -----------------------------------------------------------------
 CURRENCY = "$"  # one-line change for € etc.
 
-ROLES = ("member", "specialist", "director")
-ASSIGNABLE_TIERS = ("member", "specialist")  # what a director can set in-app
-ROLE_LABELS = {"member": "Member", "specialist": "Specialist", "director": "Director"}
+ROLES = ("member", "director", "founder")
+ROLE_LABELS = {"member": "Member", "director": "Director", "founder": "Founder"}
 
-# Budget line categories (directors set these per project).
 CATEGORIES = (
-    "Personnel / Salaries",
-    "Equipment",
-    "Materials & Supplies",
-    "Travel",
-    "Publication / Dissemination",
-    "Subcontracts",
-    "Overhead / Indirect",
-    "Other",
+    "Personnel / Salaries", "Equipment", "Materials & Supplies", "Travel",
+    "Publication / Dissemination", "Subcontracts", "Overhead / Indirect", "Other",
 )
 
 TRACKS = (
-    "Bioengineering & Tech",
-    "Health & Physiology",
-    "Media & Marketing",
-    "Policy & Advocacy",
-    "CHASM Project",
+    "Bioengineering & Tech", "Health & Physiology", "Media & Marketing",
+    "Policy & Advocacy", "CHASM Project",
 )
 
 PROJECT_STATUSES = ("planning", "active", "on_hold", "complete")
+
+# Discussion-update status
 PROGRESS_STATUSES = ("on_track", "at_risk", "blocked", "done")
 PROGRESS_LABELS = {"on_track": "On track", "at_risk": "At risk",
                    "blocked": "Blocked", "done": "Done"}
+
+TASK_STATUSES = ("todo", "doing", "done")
+TASK_LABELS = {"todo": "To do", "doing": "In progress", "done": "Done"}
 
 
 def _secret(key: str, default=None):
@@ -73,24 +67,34 @@ def money(x) -> str:
 
 
 def week_monday(d: date | None = None) -> str:
-    """ISO date of the Monday of d's week (default: this week)."""
     d = d or date.today()
     return (d - timedelta(days=d.weekday())).isoformat()
 
 
-# --- Director allowlist (config-driven roles) -------------------------------
-def director_emails() -> set[str]:
-    """Emails designated as directors. Accepts a TOML array or a
-    comma/space/semicolon-separated string in DIRECTOR_EMAILS."""
-    raw = _secret("DIRECTOR_EMAILS")
+# --- Config-driven roles ----------------------------------------------------
+def _email_set(key: str) -> set[str]:
+    raw = _secret(key)
     if not raw:
         return set()
     parts = re.split(r"[,;\s]+", raw) if isinstance(raw, str) else list(raw)
     return {p.strip().lower() for p in parts if p and str(p).strip()}
 
 
+def director_emails() -> set[str]:
+    return _email_set("DIRECTOR_EMAILS")
+
+
+def founder_emails() -> set[str]:
+    return _email_set("FOUNDER_EMAILS")
+
+
 def role_for_email(email: str) -> str:
-    return "director" if (email or "").strip().lower() in director_emails() else "member"
+    e = (email or "").strip().lower()
+    if e in founder_emails():
+        return "founder"
+    if e in director_emails():
+        return "director"
+    return "member"
 
 
 # --- Postgres (trusted server connection; RLS bypassed by design) -----------
@@ -154,8 +158,6 @@ def _auth_headers(token: str | None = None) -> dict:
 
 
 def _redirect_suffix() -> str:
-    """Query suffix pointing email-confirmation links back at the app.
-    APP_URL must also be listed in Supabase → Auth → URL Configuration."""
     url = _secret("APP_URL")
     return f"?redirect_to={quote(url, safe='')}" if url else ""
 
@@ -176,16 +178,13 @@ def _session_from(d: dict) -> dict:
 
 
 def sign_in(email: str, password: str) -> dict | None:
-    """Return {access_token, refresh_token, id, email} on success, else None."""
-    r = requests.post(_auth_url("token?grant_type=password"),
-                      headers=_auth_headers(),
+    r = requests.post(_auth_url("token?grant_type=password"), headers=_auth_headers(),
                       json={"email": email.strip().lower(), "password": password},
                       timeout=15)
     return _session_from(r.json()) if r.ok else None
 
 
 def refresh_session(refresh_token: str) -> dict | None:
-    """Exchange a stored refresh token for a fresh session (rotates the token)."""
     try:
         r = requests.post(_auth_url("token?grant_type=refresh_token"),
                           headers=_auth_headers(),
@@ -215,19 +214,9 @@ def get_profile(uid: str):
 
 
 def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
-    """Ensure a profile row exists and reconcile its role on every login.
-
-    The director allowlist always wins. Otherwise an in-app 'specialist'
-    promotion is preserved; everyone else is a 'member'. (So logging in never
-    silently demotes a specialist, but dropping someone from the allowlist does
-    demote them from director.)"""
-    prof = get_profile(uid)
-    if email and email.strip().lower() in director_emails():
-        role = "director"
-    elif prof and prof["role"] == "specialist":
-        role = "specialist"
-    else:
-        role = "member"
+    """Ensure a profile row exists; reconcile role from the allowlists on login
+    (founder > director > member). Editing the allowlists takes effect next login."""
+    role = role_for_email(email)
     _run("INSERT INTO profiles (id, email, name, role) VALUES (%s,%s,%s,%s) "
          "ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, "
          "name = COALESCE(EXCLUDED.name, profiles.name)",
@@ -235,21 +224,88 @@ def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
     return get_profile(uid)
 
 
-def set_tier(uid: str, tier: str) -> None:
-    """Director action: promote/demote a person between member and specialist.
-    Directors come from the allowlist and can't be set here."""
-    if tier not in ASSIGNABLE_TIERS:
-        raise ValueError(tier)
-    _run("UPDATE profiles SET role = %s WHERE id = %s AND role <> 'director'",
-         (tier, uid))
-
-
 def list_profiles():
-    return _q("SELECT * FROM profiles ORDER BY "
-              "CASE role WHEN 'director' THEN 0 WHEN 'specialist' THEN 1 ELSE 2 END, name")
+    return _q("SELECT * FROM profiles ORDER BY CASE role WHEN 'founder' THEN 0 "
+              "WHEN 'director' THEN 1 ELSE 2 END, name")
 
 
-# --- Projects (directors set these) -----------------------------------------
+# --- Track directors (founders assign) --------------------------------------
+def set_track_director(track: str, user_id: str | None) -> None:
+    """Founder action: which director owns/directs a track. None clears it."""
+    if user_id is None:
+        _run("DELETE FROM track_owners WHERE track = %s", (track,))
+    else:
+        _run("INSERT INTO track_owners (track, user_id) VALUES (%s,%s) "
+             "ON CONFLICT (track) DO UPDATE SET user_id = EXCLUDED.user_id",
+             (track, user_id))
+
+
+def track_directors() -> dict:
+    """{track: {'user_id', 'name'}} for tracks that have a director."""
+    return {r["track"]: {"user_id": r["user_id"], "name": r["name"]}
+            for r in _q("SELECT o.track, o.user_id, u.name FROM track_owners o "
+                        "JOIN profiles u ON u.id = o.user_id")}
+
+
+def owned_tracks(user_id: str) -> set:
+    # Only counts if the person is still a director/founder — so removing someone
+    # from the allowlist (demoted on next login) also revokes their track control.
+    return {r["track"] for r in _q(
+        "SELECT o.track FROM track_owners o JOIN profiles p ON p.id = o.user_id "
+        "WHERE o.user_id = %s AND p.role IN ('director','founder')", (user_id,))}
+
+
+# --- Track teams (directors build them from the user pool) -------------------
+def add_track_member(track: str, user_id: str, is_lead: bool = False) -> None:
+    _run("INSERT INTO track_members (track, user_id, is_lead, created_at) "
+         "VALUES (%s,%s,%s,%s) ON CONFLICT (track, user_id) "
+         "DO UPDATE SET is_lead = EXCLUDED.is_lead", (track, user_id, is_lead, now()))
+
+
+def remove_track_member(track: str, user_id: str) -> None:
+    _run("DELETE FROM track_members WHERE track = %s AND user_id = %s",
+         (track, user_id))
+
+
+def list_track_members(track: str):
+    return _q("SELECT m.user_id, m.is_lead, u.name, u.email FROM track_members m "
+              "JOIN profiles u ON u.id = m.user_id WHERE m.track = %s "
+              "ORDER BY m.is_lead DESC, u.name", (track,))
+
+
+def member_tracks(user_id: str) -> set:
+    return {r["track"] for r in
+            _q("SELECT track FROM track_members WHERE user_id = %s", (user_id,))}
+
+
+def lead_tracks(user_id: str) -> set:
+    return {r["track"] for r in
+            _q("SELECT track FROM track_members WHERE user_id = %s AND is_lead",
+               (user_id,))}
+
+
+# --- Permissions (pure rules; pages compute the booleans once) ---------------
+def can_manage_track(is_founder: bool, is_track_director: bool) -> bool:
+    """Create/delete projects, budgets, build the team, assign tasks, set status
+    structurally. Founder anywhere; a director only in a track they direct."""
+    return is_founder or is_track_director
+
+
+def can_edit_project(is_founder: bool, is_track_director: bool,
+                     is_track_lead: bool) -> bool:
+    """Edit a project's details/requirements/status/updates. Founder, the track's
+    director, or a lead on that track."""
+    return is_founder or is_track_director or is_track_lead
+
+
+def can_post_update(is_founder: bool, is_track_director: bool,
+                    is_track_member: bool) -> bool:
+    """Post a discussion update. Founder, the track director, or any team member
+    of that track (leads included)."""
+    return is_founder or is_track_director or is_track_member
+
+
+# --- Projects ---------------------------------------------------------------
 def create_project(name, description, requirements, status, track, director_id) -> int:
     return _insert(
         "INSERT INTO projects (name, description, requirements, status, track, "
@@ -283,55 +339,8 @@ def get_project(pid: int):
                 "LEFT JOIN profiles u ON u.id = p.director_id WHERE p.id = %s", (pid,))
 
 
-# --- Track leads, coordinators + permissions --------------------------------
-def assign_track_lead(track: str, user_id: str) -> None:
-    _run("INSERT INTO track_leads (track, user_id, created_at) VALUES (%s,%s,%s) "
-         "ON CONFLICT (track, user_id) DO NOTHING", (track, user_id, now()))
-
-
-def remove_track_lead(track: str, user_id: str) -> None:
-    _run("DELETE FROM track_leads WHERE track = %s AND user_id = %s",
-         (track, user_id))
-
-
-def list_track_leads(track: str):
-    return _q("SELECT tl.user_id, u.name, u.email FROM track_leads tl "
-              "JOIN profiles u ON u.id = tl.user_id WHERE tl.track = %s "
-              "ORDER BY u.name", (track,))
-
-
-def lead_tracks(user_id: str) -> set:
-    return {r["track"] for r in
-            _q("SELECT track FROM track_leads WHERE user_id = %s", (user_id,))}
-
-
-def set_track_coordinator(track: str, user_id: str | None) -> None:
-    """Designate a track's coordinator (a director). None clears it."""
-    if user_id is None:
-        _run("DELETE FROM track_owners WHERE track = %s", (track,))
-    else:
-        _run("INSERT INTO track_owners (track, user_id) VALUES (%s,%s) "
-             "ON CONFLICT (track) DO UPDATE SET user_id = EXCLUDED.user_id",
-             (track, user_id))
-
-
-def track_coordinators() -> dict:
-    """{track: {'user_id':..., 'name':...}} for tracks that have a coordinator."""
-    return {r["track"]: {"user_id": r["user_id"], "name": r["name"]}
-            for r in _q("SELECT o.track, o.user_id, u.name FROM track_owners o "
-                        "JOIN profiles u ON u.id = o.user_id")}
-
-
-def can_edit_project_role(role: str, is_track_lead: bool) -> bool:
-    """Pure permission rule for editing a project's details/requirements/status/
-    progress. Directors and specialists edit any track; a member edits only
-    projects in a track they lead. Budget/create/delete stay director-only."""
-    return role in ("director", "specialist") or is_track_lead
-
-
-# --- Documents / links (attach existing files, e.g. Google Drive) ------------
+# --- Documents / links ------------------------------------------------------
 def clean_url(url: str) -> str | None:
-    """Return the URL if it's a safe http(s) link, else None."""
     u = (url or "").strip()
     p = urlparse(u)
     return u if p.scheme in ("http", "https") and p.netloc else None
@@ -343,8 +352,7 @@ def add_project_link(project_id: int, label: str, url: str, added_by: str) -> in
         raise ValueError("Only http(s) links are allowed.")
     return _insert(
         "INSERT INTO project_links (project_id, label, url, added_by, created_at) "
-        "VALUES (%s,%s,%s,%s,%s)",
-        (project_id, (label or u).strip(), u, added_by, now()))
+        "VALUES (%s,%s,%s,%s,%s)", (project_id, (label or u).strip(), u, added_by, now()))
 
 
 def list_project_links(project_id: int):
@@ -357,9 +365,8 @@ def delete_project_link(link_id: int) -> None:
     _run("DELETE FROM project_links WHERE id = %s", (link_id,))
 
 
-# --- Budget lines (director-only, per project) ------------------------------
+# --- Budget lines (track director / founder) --------------------------------
 def set_budget_lines(project_id: int, lines: list[dict]) -> None:
-    """Replace all budget lines for a project."""
     _run("DELETE FROM budget_lines WHERE project_id = %s", (project_id,))
     for ln in lines:
         amt = round(float(ln.get("amount") or 0), 2)
@@ -380,35 +387,64 @@ def project_budget_total(project_id: int) -> float:
                 "WHERE project_id = %s", (project_id,))["t"]
 
 
-# --- Progress updates (open posting: any member) ----------------------------
-def add_progress(project_id, author_id, status, note, week_start=None) -> int:
+# --- Discussion updates (title + timestamp; post any time) ------------------
+def add_progress(project_id, author_id, title, status, note) -> int:
     if status not in PROGRESS_STATUSES:
         raise ValueError(status)
     return _insert(
-        "INSERT INTO progress_updates (project_id, author_id, week_start, status, "
-        "note, created_at) VALUES (%s,%s,%s,%s,%s,%s)",
-        (project_id, author_id, week_start or week_monday(), status, note, now()))
+        "INSERT INTO progress_updates (project_id, author_id, title, status, note, "
+        "week_start, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (project_id, author_id, (title or "").strip(), status, note,
+         week_monday(), now()))
 
 
 def list_progress(project_id: int | None = None, limit: int | None = None):
-    sql = ("SELECT g.*, u.name AS author_name, pr.name AS project_name "
+    sql = ("SELECT g.*, u.name AS author_name, pr.name AS project_name, pr.track "
            "FROM progress_updates g LEFT JOIN profiles u ON u.id = g.author_id "
            "JOIN projects pr ON pr.id = g.project_id")
     args = []
     if project_id:
-        sql += " WHERE g.project_id = %s"
-        args.append(project_id)
-    sql += " ORDER BY g.week_start DESC, g.created_at DESC, g.id DESC"
+        sql += " WHERE g.project_id = %s"; args.append(project_id)
+    sql += " ORDER BY g.created_at DESC, g.id DESC"
     if limit:
-        sql += " LIMIT %s"
-        args.append(limit)
+        sql += " LIMIT %s"; args.append(limit)
     return _q(sql, args)
 
 
 def latest_progress_by_project():
-    """Most recent update per project (for the overview at-a-glance)."""
     return _q(
-        "SELECT DISTINCT ON (g.project_id) g.project_id, g.status, g.week_start, "
-        "g.note, u.name AS author_name FROM progress_updates g "
+        "SELECT DISTINCT ON (g.project_id) g.project_id, g.status, g.title, "
+        "g.created_at, u.name AS author_name FROM progress_updates g "
         "LEFT JOIN profiles u ON u.id = g.author_id "
-        "ORDER BY g.project_id, g.week_start DESC, g.created_at DESC, g.id DESC")
+        "ORDER BY g.project_id, g.created_at DESC, g.id DESC")
+
+
+# --- Tasks ------------------------------------------------------------------
+def create_task(project_id, title, description, assignee_id, due_date, created_by) -> int:
+    return _insert(
+        "INSERT INTO tasks (project_id, title, description, assignee_id, status, "
+        "due_date, created_by, created_at) VALUES (%s,%s,%s,%s,'todo',%s,%s,%s)",
+        (project_id, (title or "").strip(), description, assignee_id or None,
+         due_date or None, created_by, now()))
+
+
+def list_tasks(project_id: int | None = None, assignee_id: str | None = None):
+    sql = ("SELECT t.*, a.name AS assignee_name, pr.name AS project_name, pr.track "
+           "FROM tasks t LEFT JOIN profiles a ON a.id = t.assignee_id "
+           "JOIN projects pr ON pr.id = t.project_id WHERE TRUE")
+    args = []
+    if project_id:
+        sql += " AND t.project_id = %s"; args.append(project_id)
+    if assignee_id:
+        sql += " AND t.assignee_id = %s"; args.append(assignee_id)
+    return _q(sql + " ORDER BY (t.status='done'), t.due_date NULLS LAST, t.id DESC", args)
+
+
+def set_task_status(task_id: int, status: str) -> None:
+    if status not in TASK_STATUSES:
+        raise ValueError(status)
+    _run("UPDATE tasks SET status = %s WHERE id = %s", (status, task_id))
+
+
+def delete_task(task_id: int) -> None:
+    _run("DELETE FROM tasks WHERE id = %s", (task_id,))

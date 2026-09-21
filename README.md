@@ -1,33 +1,24 @@
 # Adrastea — team project tracking
 
-A Streamlit app (Supabase backend) where a research team runs its work:
-
-- **Directors** set the projects the team is working on — with descriptions,
-  **requirements**, and a **budget breakdown** per project.
-- **Everyone** posts a short **weekly progress update** (status + note) on any
-  project, so the team can see at a glance what's on track, at risk, or blocked.
+A Streamlit app (Supabase backend) where a research team runs its work across
+**tracks** — projects, a timestamped **discussion**, and **tasks**.
 
 ## Roles
 
-Tiers, from most to least access:
+Work is organised into five **tracks**: **Bioengineering & Tech**, **Health &
+Physiology**, **Media & Marketing**, **Policy & Advocacy**, **CHASM Project**.
+Each track has a director and a team. Access, most to least:
 
 | Role | Set by | Can do |
 |------|--------|--------|
-| `director`   | email is in `DIRECTOR_EMAILS` | everything: create/delete projects, set budgets, assign leads, promote specialists |
-| `specialist` | a director promotes them (Team page) | edit **any** project's details, requirements, status and progress (not budgets) |
-| `member`     | any other registered email | view projects/budgets, post weekly progress |
-| **lead** | a director assigns them to a **track** (Team page) | *(per-track hat, on top of their tier)* edit any project **in that track** — details, requirements, status and progress |
+| `founder`  | email in `FOUNDER_EMAILS` | global admin: assign track directors, manage any track/team/project |
+| `director` | email in `DIRECTOR_EMAILS`; a founder gives them track(s) | run **their** track(s): create/delete projects, budgets, build the team, assign tasks, set status. Other tracks are view-only |
+| **lead** | their track's director marks them a lead | edit that track's projects (details/requirements/status) + everything a member can |
+| `member`   | any registered email a director adds to a track team | post discussion updates and work assigned tasks on their track(s); view everything |
 
-Directors and specialists are reconciled on every sign-in; a specialist promotion
-is preserved across logins, and removing someone from `DIRECTOR_EMAILS` demotes
-them on their next sign-in.
-
-### Tracks
-
-Projects belong to one of five tracks: **Bioengineering & Tech**, **Health &
-Physiology**, **Media & Marketing**, **Policy & Advocacy**, and **CHASM Project**.
-Each track can have a **coordinator** (a director) and its own **leads**. Directors
-and specialists work across all tracks; leads work only within their track(s).
+Roles reconcile from the allowlists on every sign-in (founder > director >
+member), so removing someone from an allowlist demotes them next login — and that
+also revokes any track ownership they held.
 
 ## Get the app
 
@@ -46,13 +37,15 @@ cd adrastea-finance-ecosystem
    - `SUPABASE_URL`, `SUPABASE_ANON_KEY` (Supabase → Settings → API)
    - `DATABASE_URL` (Supabase → Connect → **Session pooler** URI; replace the
      password placeholder)
-   - `DIRECTOR_EMAILS` — a TOML array of the directors' emails
-   This file is git-ignored, so keys and the director list are never published.
+   - `FOUNDER_EMAILS`, `DIRECTOR_EMAILS` — TOML arrays of founder / director emails
+   This file is git-ignored, so keys and the allowlists are never published.
+   On an already-running database, apply the additive files in
+   [`migrations/`](migrations) instead of re-running `schema.sql` (which drops
+   tables).
 4. **Install deps**: `py -m pip install -r requirements.txt`
 5. **Run**: `py -m streamlit run app.py` → http://localhost:8501
-6. Everyone signs up (name, email, password). Anyone whose email is in
-   `DIRECTOR_EMAILS` becomes a director on their next sign-in; everyone else is a
-   member.
+6. Everyone signs up (name, email, password). A **founder** then assigns track
+   directors and each director builds their track's team (Team page).
 
 > Tip: In Supabase → Authentication → Email, turn **off** "Confirm email" for a
 > smoother internal-team signup (or keep it on and confirm via the link).

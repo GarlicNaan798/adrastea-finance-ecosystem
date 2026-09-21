@@ -1,6 +1,6 @@
-"""Projects. Everyone browses. Directors create/delete, set budgets and tracks.
-Specialists edit any project; a track's leads edit projects in that track.
-Budget stays director-only."""
+"""Projects. Everyone browses. A founder or a track's director creates/deletes,
+sets budgets and the track. Leads (and directors) edit details on their track's
+projects. Budget/create/delete stay with founders and the track director."""
 import pandas as pd
 import streamlit as st
 
@@ -11,19 +11,27 @@ st.set_page_config(page_title="Projects · Adrastea", page_icon="🌘", layout="
 user = ui.require_login()
 ui.page_header("Projects", "Portfolio")
 
-role = user["role"]
-is_director = role == "director"
-is_specialist = role == "specialist"
-my_tracks = core.lead_tracks(user["id"])          # tracks this user leads
-coords = core.track_coordinators()                # {track: {name, user_id}}
+uid, role = user["id"], user["role"]
+is_founder = role == "founder"
+owned = core.owned_tracks(uid)     # tracks this user directs
+led = core.lead_tracks(uid)        # tracks where this user is a team lead
+directors = core.track_directors()  # {track: {name, user_id}}
 
 
 def _fmt_status(s: str) -> str:
     return s.replace("_", " ").title()
 
 
-def _can_edit(project) -> bool:
-    return core.can_edit_project_role(role, project.get("track") in my_tracks)
+def manages(track) -> bool:        # create/delete/budget/team
+    return is_founder or track in owned
+
+
+def can_edit(track) -> bool:       # edit details/status
+    return is_founder or track in owned or track in led
+
+
+def manageable_tracks():
+    return list(core.TRACKS) if is_founder else sorted(owned)
 
 
 def browse():
@@ -31,28 +39,23 @@ def browse():
     if not projects:
         st.info("No projects yet.")
         return
-    tracks_present = [t for t in core.TRACKS if any(p["track"] == t for p in projects)]
-    flt = st.selectbox("Track", ["All tracks"] + tracks_present, key="browse_track")
+    present = [t for t in core.TRACKS if any(p["track"] == t for p in projects)]
+    flt = st.selectbox("Track", ["All tracks"] + present, key="browse_track")
     shown = projects if flt == "All tracks" else [p for p in projects if p["track"] == flt]
     for p in shown:
-        with st.expander(f'{p["name"]}  ·  {p["track"] or "—"}  ·  '
-                         f'{_fmt_status(p["status"])}'):
-            coord = coords.get(p["track"], {}).get("name")
-            leads = ", ".join(l["name"] for l in core.list_track_leads(p["track"])) \
-                if p["track"] else ""
-            st.markdown(
-                f'<span class="meta">Track coordinator: {coord or "—"} · '
-                f'Leads: {leads or "—"}</span>', unsafe_allow_html=True)
+        with st.expander(f'{p["name"]}  ·  {p["track"] or "—"}  ·  {_fmt_status(p["status"])}'):
+            d = directors.get(p["track"], {}).get("name") or "—"
+            leads = ", ".join(m["name"] for m in core.list_track_members(p["track"])
+                              if m["is_lead"]) or "—"
+            st.markdown(f'<span class="meta">Director: {d} · Leads: {leads}</span>',
+                        unsafe_allow_html=True)
             if p["description"]:
                 st.write(p["description"])
             if p["requirements"]:
                 st.markdown("**Requirements**")
                 st.write(p["requirements"])
-            links = core.list_project_links(p["id"])
-            if links:
-                st.markdown("**Documents**")
-                for l in links:
-                    st.markdown(f'- [{l["label"] or l["url"]}]({l["url"]})')
+            for l in core.list_project_links(p["id"]):
+                st.markdown(f'- [{l["label"] or l["url"]}]({l["url"]})')
             bl = core.list_budget_lines(p["id"])
             if bl:
                 st.markdown("**Budget**")
@@ -60,30 +63,16 @@ def browse():
                     "Category": b["category"], "Detail": b["description"],
                     "Amount": core.money(b["amount"])} for b in bl]),
                     hide_index=True, width='stretch')
-                st.caption(f'Total budget: {core.money(core.project_budget_total(p["id"]))}')
-            recent = core.list_progress(project_id=p["id"], limit=3)
-            if recent:
-                st.markdown("**Latest progress**")
-                for g in recent:
-                    st.markdown(
-                        f'{ui.status_pill(g["status"])} '
-                        f'<span class="meta">{g["week_start"]} · '
-                        f'{g["author_name"] or "—"}</span>', unsafe_allow_html=True)
-                    if g["note"]:
-                        st.caption(g["note"])
+                st.caption(f'Total: {core.money(core.project_budget_total(p["id"]))}')
 
 
 def editor():
     projects = core.list_projects()
-    if is_director or is_specialist:
-        pickable = projects
-    else:
-        pickable = [p for p in projects if p.get("track") in my_tracks]
-
+    editable = [p for p in projects if can_edit(p["track"])]
     choices = {}
-    if is_director:
+    if manageable_tracks():
         choices["➕ New project"] = None
-    choices |= {f'{p["name"]} (#{p["id"]})': p["id"] for p in pickable}
+    choices |= {f'{p["name"]} (#{p["id"]})': p["id"] for p in editable}
     if not choices:
         st.info("Nothing to edit yet.")
         return
@@ -91,72 +80,63 @@ def editor():
     pick = st.selectbox("Project", list(choices), key="proj_pick")
     pid = choices[pick]
     ex = core.get_project(pid) if pid else None
-    can_edit = is_director or is_specialist or (ex and ex.get("track") in my_tracks)
+    ce = True if not ex else can_edit(ex["track"])
+    cm_track = ex["track"] if ex else (manageable_tracks() or list(core.TRACKS))[0]
+    can_manage = manages(cm_track)
 
-    name = st.text_input("Name", value=ex["name"] if ex else "", disabled=not can_edit)
+    name = st.text_input("Name", value=ex["name"] if ex else "", disabled=not ce)
     c1, c2 = st.columns(2)
-    # Track is a director-controlled property (it defines who can edit the project).
-    track_idx = core.TRACKS.index(ex["track"]) if ex and ex.get("track") in core.TRACKS else 0
-    track = c1.selectbox("Track", list(core.TRACKS), index=track_idx,
-                         disabled=not is_director)
-    status = c2.selectbox(
-        "Status", list(core.PROJECT_STATUSES),
+    # Track: managers pick from tracks they manage; leads can't move a project.
+    topts = manageable_tracks() if can_manage else [ex["track"]] if ex else manageable_tracks()
+    tidx = topts.index(ex["track"]) if ex and ex["track"] in topts else 0
+    track = c1.selectbox("Track", topts, index=tidx, disabled=not can_manage)
+    status = c2.selectbox("Status", list(core.PROJECT_STATUSES),
         index=list(core.PROJECT_STATUSES).index(ex["status"]) if ex else 1,
-        format_func=_fmt_status, disabled=not can_edit)
+        format_func=_fmt_status, disabled=not ce)
     description = st.text_area("Description", value=ex["description"] if ex else "",
-                              height=90, disabled=not can_edit)
-    requirements = st.text_area("Requirements — what the project needs to succeed",
-                               value=ex["requirements"] if ex else "", height=110,
-                               disabled=not can_edit)
+                              height=90, disabled=not ce)
+    requirements = st.text_area("Requirements", value=ex["requirements"] if ex else "",
+                               height=100, disabled=not ce)
 
     if st.button("Save details", type="primary", width='stretch',
-                 disabled=not (can_edit and name)):
-        # Non-directors can't move a project between tracks.
-        save_track = track if is_director else (ex["track"] if ex else track)
+                 disabled=not (ce and name)):
+        save_track = track if can_manage else (ex["track"] if ex else track)
         if not pid:
             pid = core.create_project(name, description, requirements, status,
-                                      save_track, user["id"])
+                                      save_track, uid)
         else:
             core.update_project(pid, name, description, requirements, status, save_track)
         st.success("Saved.")
         st.rerun()
 
-    # --- Documents & links (anyone who can edit the project) ----------------
-    if ex and can_edit:
+    # Documents (any editor)
+    if ex and ce:
         st.markdown("#### Documents & links")
-        st.caption("Attach Google Drive / Docs links (or any URL). Files stay "
-                   "where they live — nothing to migrate.")
+        st.caption("Attach Google Drive / Docs links (or any URL).")
         for l in core.list_project_links(pid):
-            lc1, lc2 = st.columns([5, 1])
-            lc1.markdown(
-                f'[{l["label"] or l["url"]}]({l["url"]})  \n'
-                f'<span class="meta">added by {l["added_by_name"] or "—"}</span>',
-                unsafe_allow_html=True)
-            if lc2.button("Remove", key=f"rmlink_{l['id']}", width='stretch'):
-                core.delete_project_link(l["id"])
-                st.rerun()
+            a, b = st.columns([5, 1])
+            a.markdown(f'[{l["label"] or l["url"]}]({l["url"]})', unsafe_allow_html=True)
+            if b.button("Remove", key=f"rml_{l['id']}", width='stretch'):
+                core.delete_project_link(l["id"]); st.rerun()
         with st.form(f"addlink_{pid}", clear_on_submit=True):
-            fc1, fc2 = st.columns([2, 3])
-            lbl = fc1.text_input("Label", placeholder="e.g. Q3 report")
-            link_url = fc2.text_input("URL", placeholder="https://drive.google.com/…")
+            fa, fb = st.columns([2, 3])
+            lbl = fa.text_input("Label", placeholder="e.g. Q3 report")
+            u = fb.text_input("URL", placeholder="https://drive.google.com/…")
             if st.form_submit_button("Add link"):
-                if core.clean_url(link_url):
-                    core.add_project_link(pid, lbl, link_url, user["id"])
-                    st.success("Link added.")
-                    st.rerun()
+                if core.clean_url(u):
+                    core.add_project_link(pid, lbl, u, uid); st.success("Added."); st.rerun()
                 else:
                     st.error("Enter a valid http(s) URL.")
 
-    if is_director and ex:
+    # Budget + delete (managers only)
+    if ex and can_manage:
         st.markdown("#### Budget breakdown")
-        st.caption("Category, how it's spent, and amount. Directors only.")
         rows = [{"Category": b["category"], "Detail": b["description"],
                  "Amount": b["amount"]} for b in core.list_budget_lines(pid)]
-        base = pd.DataFrame(rows or [{"Category": core.CATEGORIES[0],
-                                      "Detail": "", "Amount": 0.0}])
-        edited = st.data_editor(
-            base, num_rows="dynamic", width='stretch', key=f"budget_ed_{pid}",
-            column_config={
+        base = pd.DataFrame(rows or [{"Category": core.CATEGORIES[0], "Detail": "",
+                                      "Amount": 0.0}])
+        edited = st.data_editor(base, num_rows="dynamic", width='stretch',
+            key=f"budget_ed_{pid}", column_config={
                 "Category": st.column_config.SelectboxColumn(
                     options=list(core.CATEGORIES), required=True),
                 "Detail": st.column_config.TextColumn(width="large"),
@@ -164,27 +144,22 @@ def editor():
                     format=f"{core.CURRENCY}%.2f", min_value=0.0)})
         st.metric("Total budget", core.money(float(edited["Amount"].fillna(0).sum())))
         if st.button("Save budget", width='stretch'):
-            core.set_budget_lines(pid, [
-                {"category": r["Category"], "description": r["Detail"],
-                 "amount": r["Amount"]} for _, r in edited.iterrows()])
-            st.success("Budget saved.")
-            st.rerun()
-
+            core.set_budget_lines(pid, [{"category": r["Category"],
+                "description": r["Detail"], "amount": r["Amount"]}
+                for _, r in edited.iterrows()])
+            st.success("Budget saved."); st.rerun()
         with st.expander("Danger zone"):
             if st.button("Delete project", width='stretch'):
-                core.delete_project(pid)
-                st.warning("Project deleted.")
-                st.rerun()
+                core.delete_project(pid); st.warning("Deleted."); st.rerun()
 
 
-show_editor = is_director or is_specialist or bool(my_tracks)
-if show_editor:
-    t_browse, t_edit = st.tabs(["All projects", "Create / edit"])
-    with t_browse:
+if is_founder or owned or led:
+    tb, te = st.tabs(["All projects", "Create / edit"])
+    with tb:
         browse()
-    with t_edit:
+    with te:
         editor()
 else:
     browse()
-    st.caption("Directors create projects and assign track leads (Team page). "
-               "Leads can edit projects in their track.")
+    st.caption("A founder or track director creates projects and builds teams. "
+               "Ask to be added to a track's team to contribute.")

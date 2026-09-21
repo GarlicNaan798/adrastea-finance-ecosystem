@@ -3,11 +3,13 @@
 -- This rebuilds the app tables. It is safe on a fresh project; it DROPS the
 -- app tables (and their data) if you re-run it on a populated database.
 
+drop table if exists tasks cascade;
 drop table if exists progress_updates cascade;
 drop table if exists project_links cascade;
-drop table if exists track_leads cascade;
+drop table if exists track_members cascade;
+drop table if exists track_leads cascade;      -- legacy (replaced by track_members)
 drop table if exists track_owners cascade;
-drop table if exists project_leads cascade;   -- legacy (replaced by track_leads)
+drop table if exists project_leads cascade;    -- legacy
 drop table if exists budget_lines cascade;
 drop table if exists projects cascade;
 -- legacy tables from the previous (finance) version, if present:
@@ -22,7 +24,7 @@ create table profiles (
     email text,
     name  text,
     role  text not null default 'member'
-          check (role in ('member','specialist','director')),
+          check (role in ('member','director','founder')),
     created_at timestamptz not null default now()
 );
 
@@ -62,32 +64,33 @@ create table budget_lines (
     amount      double precision not null default 0
 );
 
--- Weekly progress updates; any registered member may post (open posting).
+-- Discussion updates: title + note + status, posted any time (sorted by time).
 create table progress_updates (
     id         bigint generated always as identity primary key,
     project_id bigint not null references projects(id) on delete cascade,
     author_id  uuid references profiles(id),
-    week_start text not null,   -- ISO date of that week's Monday
+    title      text,
     status     text not null check (status in ('on_track','at_risk','blocked','done')),
     note       text,
+    week_start text,           -- retained; no longer used for ordering
     created_at text not null
 );
-create index if not exists progress_by_project on progress_updates(project_id, week_start desc);
+create index if not exists progress_by_project on progress_updates(project_id, created_at desc);
 
--- Track leads. Directors assign a user to a track; a lead can edit any project
--- in that track (details/requirements/status/progress, not the budget).
-create table track_leads (
-    track      text not null,
-    user_id    uuid not null references profiles(id) on delete cascade,
-    created_at text not null,
-    primary key (track, user_id)
-);
-
--- Optional: the coordinator (a director) responsible for a track. Display only;
--- directors have access to all tracks regardless.
+-- Track director: the one director who directs a track (set by a founder).
 create table track_owners (
     track   text primary key,
     user_id uuid not null references profiles(id) on delete cascade
+);
+
+-- Track team: users a director adds to their track. is_lead marks leads (who can
+-- edit projects in that track); other members post updates and hold tasks.
+create table track_members (
+    track      text not null,
+    user_id    uuid not null references profiles(id) on delete cascade,
+    is_lead    boolean not null default false,
+    created_at text not null,
+    primary key (track, user_id)
 );
 
 -- Document links attached to a project (e.g. Google Drive / Docs URLs). Files
@@ -100,3 +103,17 @@ create table project_links (
     added_by   uuid references profiles(id),
     created_at text not null
 );
+
+-- Tasks assigned within a track (directors and leads assign to team members).
+create table tasks (
+    id          bigint generated always as identity primary key,
+    project_id  bigint not null references projects(id) on delete cascade,
+    title       text not null,
+    description text,
+    assignee_id uuid references profiles(id),
+    status      text not null default 'todo' check (status in ('todo','doing','done')),
+    due_date    text,
+    created_by  uuid references profiles(id),
+    created_at  text not null
+);
+create index if not exists tasks_by_assignee on tasks(assignee_id);

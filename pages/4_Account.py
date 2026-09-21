@@ -11,12 +11,13 @@ ui.page_header("Account", "Settings")
 st.write(f"**{user['name']}** · {user['email']}")
 st.write(f"Role: **{core.ROLE_LABELS.get(user['role'], user['role'])}**")
 _ROLE_NOTE = {
-    "director": "As a director you can create/delete projects, set budgets, assign "
-                "leads, and promote specialists (Team page).",
-    "specialist": "As a specialist you can edit any project's details, "
-                  "requirements, status and progress. Budgets stay director-only.",
-    "member": "You can view projects and post weekly progress. A director can make "
-              "you a project **lead** (edit that project) or a **specialist**.",
+    "founder": "As a founder you manage everything: assign track directors, build "
+               "any track's team, and run all projects (Team page).",
+    "director": "As a director you run the track(s) a founder assigns you — create "
+                "projects, set budgets, build your team and assign tasks there.",
+    "member": "You contribute on the track team(s) you're added to: post updates "
+              "and work assigned tasks. A director can make you a **lead** to edit "
+              "that track's projects.",
 }
 st.caption(_ROLE_NOTE.get(user["role"], _ROLE_NOTE["member"]))
 

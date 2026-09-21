@@ -27,19 +27,22 @@ def test_auth_url_and_headers():
     assert "Authorization" not in core._auth_headers()
 
 
-def test_director_allowlist():
-    os.environ["DIRECTOR_EMAILS"] = "Alice@x.org, bob@x.org ; carol@x.org"
-    assert core.director_emails() == {"alice@x.org", "bob@x.org", "carol@x.org"}
+def test_allowlists_and_roles():
+    os.environ["DIRECTOR_EMAILS"] = "Alice@x.org, bob@x.org"
+    os.environ["FOUNDER_EMAILS"] = "carol@x.org"
+    assert core.director_emails() == {"alice@x.org", "bob@x.org"}
+    assert core.founder_emails() == {"carol@x.org"}
     assert core.role_for_email("BOB@x.org") == "director"
-    assert core.role_for_email("  Alice@x.org ") == "director"
+    assert core.role_for_email("carol@x.org") == "founder"
     assert core.role_for_email("dave@x.org") == "member"
-    assert core.role_for_email("") == "member"
+    os.environ["DIRECTOR_EMAILS"] = "carol@x.org"          # founder wins if in both
+    assert core.role_for_email("carol@x.org") == "founder"
+    del os.environ["DIRECTOR_EMAILS"]
+    del os.environ["FOUNDER_EMAILS"]
 
 
-def test_roles_and_tiers():
-    assert core.ROLES == ("member", "specialist", "director")
-    assert core.ASSIGNABLE_TIERS == ("member", "specialist")
-    assert "director" not in core.ASSIGNABLE_TIERS  # director is allowlist-only
+def test_roles():
+    assert core.ROLES == ("member", "director", "founder")
 
 
 def test_tracks():
@@ -48,11 +51,15 @@ def test_tracks():
     assert "Bioengineering & Tech" in core.TRACKS
 
 
-def test_can_edit_project_role():
-    assert core.can_edit_project_role("director", False) is True
-    assert core.can_edit_project_role("specialist", False) is True
-    assert core.can_edit_project_role("member", True) is True     # lead of the track
-    assert core.can_edit_project_role("member", False) is False   # plain member
+def test_permissions():
+    assert core.can_manage_track(True, False) is True    # founder anywhere
+    assert core.can_manage_track(False, True) is True     # the track's director
+    assert core.can_manage_track(False, False) is False
+    assert core.can_edit_project(False, True, False) is True   # track director
+    assert core.can_edit_project(False, False, True) is True   # lead
+    assert core.can_edit_project(False, False, False) is False
+    assert core.can_post_update(False, False, True) is True    # team member
+    assert core.can_post_update(False, False, False) is False
 
 
 def test_clean_url():
