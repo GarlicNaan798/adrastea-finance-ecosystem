@@ -47,12 +47,8 @@ def _restore_session(ck) -> dict | None:
         except Exception:
             pass
         return None
-    prof = core.get_profile(sess["id"])
-    st.session_state.user = {
-        **sess,
-        "name": prof["name"] if prof else sess["email"],
-        "role": prof["role"] if prof else "pending",
-    }
+    prof = core.sync_profile(sess["id"], sess["email"])  # role from allowlist
+    st.session_state.user = {**sess, "name": prof["name"], "role": prof["role"]}
     _save_session(ck, sess)  # persist the rotated token
     return st.session_state.user
 
@@ -130,6 +126,19 @@ def page_header(title: str, overline: str | None = None) -> None:
     st.markdown(f"# {title}")
 
 
+_STATUS_COLORS = {"on_track": "#3E6B57", "at_risk": "#9A6B2F",
+                  "blocked": "#9B3D33", "done": NAVY}
+
+
+def status_pill(status: str) -> str:
+    """Inline HTML pill for a progress status (use with unsafe_allow_html)."""
+    label = core.PROGRESS_LABELS.get(status, status)
+    c = _STATUS_COLORS.get(status, "#666")
+    return (f'<span style="background:{c}1A;color:{c};border:1px solid {c}55;'
+            f'border-radius:999px;padding:.12rem .6rem;font-size:.72rem;'
+            f'font-weight:600;white-space:nowrap">{label}</span>')
+
+
 def _auth_screen(ck) -> None:
     _, mid, _ = st.columns([1, 1.35, 1])
     with mid:
@@ -150,18 +159,15 @@ def _auth_screen(ck) -> None:
             with st.form("signin"):
                 email = st.text_input("Email")
                 pw = st.text_input("Password", type="password")
-                if st.form_submit_button("Sign in", use_container_width=True,
+                if st.form_submit_button("Sign in", width='stretch',
                                          type="primary"):
                     sess = core.sign_in(email, pw)
                     if not sess:
                         st.error("Invalid email or password.")
                     else:
-                        prof = core.get_profile(sess["id"])
-                        st.session_state.user = {
-                            **sess,
-                            "name": prof["name"] if prof else sess["email"],
-                            "role": prof["role"] if prof else "pending",
-                        }
+                        prof = core.sync_profile(sess["id"], sess["email"])
+                        st.session_state.user = {**sess, "name": prof["name"],
+                                                 "role": prof["role"]}
                         _save_session(ck, sess)  # remember me across refreshes
                         st.rerun()
 
@@ -170,7 +176,7 @@ def _auth_screen(ck) -> None:
                 name = st.text_input("Full name")
                 email = st.text_input("Email", key="su_email")
                 pw = st.text_input("Password (8+ chars)", type="password", key="su_pw")
-                if st.form_submit_button("Create account", use_container_width=True):
+                if st.form_submit_button("Create account", width='stretch'):
                     if not (name and email and len(pw) >= 8):
                         st.error("Name, email, and an 8+ character password required.")
                     else:
@@ -187,11 +193,6 @@ def require_login() -> dict:
         _auth_screen(ck)
         st.stop()
     _sidebar(ck, user)
-    if user["role"] == "pending":
-        page_header("Awaiting access", "Adrastea")
-        st.info("Your account is pending. An administrator will grant you a role "
-                "shortly — then Proposals, Projects and Finance will unlock.")
-        st.stop()
     return user
 
 
@@ -208,7 +209,7 @@ def _sidebar(ck, user: dict) -> None:
             unsafe_allow_html=True)
         st.markdown(f"**{user['name']}**")
         st.caption(f"{user['email']} · {user['role']}")
-        if st.button("Sign out", use_container_width=True):
+        if st.button("Sign out", width='stretch'):
             core.sign_out(user.get("access_token", ""))
             if ck is not None:
                 try:

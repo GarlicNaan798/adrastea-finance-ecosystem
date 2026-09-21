@@ -1,12 +1,13 @@
 """Adrastea backend: Supabase Postgres (data) + Supabase Auth / GoTrue (login).
 
 Config comes from st.secrets (or env vars) — see .streamlit/secrets.toml.example:
-    SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL
+    SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL, DIRECTOR_EMAILS
 """
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timedelta, timezone
 
 import psycopg2
 import psycopg2.extras
@@ -15,9 +16,9 @@ import requests
 # --- Config -----------------------------------------------------------------
 CURRENCY = "$"  # one-line change for € etc.
 
-ASSIGNABLE_ROLES = ("director", "finance", "admin")  # what an admin can grant
-ALL_ROLES = ("pending",) + ASSIGNABLE_ROLES
+ROLES = ("member", "director")
 
+# Budget line categories (directors set these per project).
 CATEGORIES = (
     "Personnel / Salaries",
     "Equipment",
@@ -28,6 +29,11 @@ CATEGORIES = (
     "Overhead / Indirect",
     "Other",
 )
+
+PROJECT_STATUSES = ("planning", "active", "on_hold", "complete")
+PROGRESS_STATUSES = ("on_track", "at_risk", "blocked", "done")
+PROGRESS_LABELS = {"on_track": "On track", "at_risk": "At risk",
+                   "blocked": "Blocked", "done": "Done"}
 
 
 def _secret(key: str, default=None):
@@ -53,6 +59,27 @@ def now() -> str:
 
 def money(x) -> str:
     return f"{CURRENCY}{float(x or 0):,.2f}"
+
+
+def week_monday(d: date | None = None) -> str:
+    """ISO date of the Monday of d's week (default: this week)."""
+    d = d or date.today()
+    return (d - timedelta(days=d.weekday())).isoformat()
+
+
+# --- Director allowlist (config-driven roles) -------------------------------
+def director_emails() -> set[str]:
+    """Emails designated as directors. Accepts a TOML array or a
+    comma/space/semicolon-separated string in DIRECTOR_EMAILS."""
+    raw = _secret("DIRECTOR_EMAILS")
+    if not raw:
+        return set()
+    parts = re.split(r"[,;\s]+", raw) if isinstance(raw, str) else list(raw)
+    return {p.strip().lower() for p in parts if p and str(p).strip()}
+
+
+def role_for_email(email: str) -> str:
+    return "director" if (email or "").strip().lower() in director_emails() else "member"
 
 
 # --- Postgres (trusted server connection; RLS bypassed by design) -----------
@@ -103,7 +130,7 @@ def _insert(sql, args=()) -> int:
     return _run(sql + " RETURNING id", args, "one")["id"]
 
 
-# --- Auth via GoTrue REST (no SDK needed for four endpoints) -----------------
+# --- Auth via GoTrue REST (no SDK needed for these endpoints) ----------------
 def _auth_url(path: str) -> str:
     return f"{_secret('SUPABASE_URL').rstrip('/')}/auth/v1/{path}"
 
@@ -121,7 +148,7 @@ def sign_up(email: str, password: str, name: str) -> tuple[bool, str]:
                             "data": {"name": name.strip()}}, timeout=15)
     if r.ok:
         return True, ("Account created. If email confirmation is on, confirm via "
-                      "the link before signing in. An admin must grant you access.")
+                      "the link, then sign in.")
     return False, r.json().get("msg", r.text)
 
 
@@ -164,178 +191,110 @@ def change_password(access_token: str, new_password: str) -> tuple[bool, str]:
     return (True, "Password updated.") if r.ok else (False, r.text)
 
 
-def send_reset(email: str) -> None:
-    requests.post(_auth_url("recover"), headers=_auth_headers(),
-                  json={"email": email.strip().lower()}, timeout=15)
-
-
 # --- Profiles / roles -------------------------------------------------------
 def get_profile(uid: str):
     return _one("SELECT * FROM profiles WHERE id = %s", (uid,))
 
 
+def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
+    """Ensure a profile row exists and its role matches the director allowlist.
+    Called on every login, so editing the allowlist takes effect next sign-in."""
+    role = role_for_email(email)
+    _run("INSERT INTO profiles (id, email, name, role) VALUES (%s,%s,%s,%s) "
+         "ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, "
+         "name = COALESCE(EXCLUDED.name, profiles.name)",
+         (uid, (email or "").lower(), name or email, role))
+    return get_profile(uid)
+
+
 def list_profiles():
-    return _q("SELECT * FROM profiles ORDER BY "
-              "(role='pending') DESC, role, name")
+    return _q("SELECT * FROM profiles ORDER BY role DESC, name")
 
 
-def set_role(uid: str, role: str) -> None:
-    if role not in ALL_ROLES:
-        raise ValueError(role)
-    _run("UPDATE profiles SET role = %s WHERE id = %s", (role, uid))
-
-
-# --- Projects ---------------------------------------------------------------
-def create_project(name, description, director_id) -> int:
+# --- Projects (directors set these) -----------------------------------------
+def create_project(name, description, requirements, status, director_id) -> int:
     return _insert(
-        "INSERT INTO projects (name, description, director_id, created_at) "
-        "VALUES (%s,%s,%s,%s)", (name.strip(), description, director_id, now()))
+        "INSERT INTO projects (name, description, requirements, status, "
+        "director_id, created_at) VALUES (%s,%s,%s,%s,%s,%s)",
+        (name.strip(), description, requirements, status, director_id, now()))
 
 
-def list_projects(director_id: str | None = None):
-    if director_id:
-        return _q("SELECT * FROM projects WHERE director_id = %s ORDER BY name",
-                  (director_id,))
-    return _q("SELECT * FROM projects ORDER BY name")
+def update_project(pid, name, description, requirements, status) -> None:
+    _run("UPDATE projects SET name=%s, description=%s, requirements=%s, status=%s "
+         "WHERE id=%s", (name.strip(), description, requirements, status, pid))
+
+
+def delete_project(pid) -> None:
+    _run("DELETE FROM projects WHERE id = %s", (pid,))
+
+
+def list_projects(status: str | None = None):
+    sql = ("SELECT p.*, u.name AS director_name FROM projects p "
+           "LEFT JOIN profiles u ON u.id = p.director_id")
+    args = []
+    if status:
+        sql += " WHERE p.status = %s"
+        args.append(status)
+    return _q(sql + " ORDER BY (p.status='complete'), p.name", args)
 
 
 def get_project(pid: int):
-    return _one("SELECT * FROM projects WHERE id = %s", (pid,))
+    return _one("SELECT p.*, u.name AS director_name FROM projects p "
+                "LEFT JOIN profiles u ON u.id = p.director_id WHERE p.id = %s", (pid,))
 
 
-# --- Proposals + budget lines -----------------------------------------------
-def create_proposal(title, director_id, summary, fiscal_year,
-                    project_id=None) -> int:
-    return _insert(
-        "INSERT INTO proposals (title, director_id, project_id, summary, "
-        "fiscal_year, status, created_at) VALUES (%s,%s,%s,%s,%s,'draft',%s)",
-        (title.strip(), director_id, project_id, summary, fiscal_year, now()))
-
-
-def update_proposal(pid, title, summary, fiscal_year) -> None:
-    _run("UPDATE proposals SET title=%s, summary=%s, fiscal_year=%s WHERE id=%s",
-         (title, summary, fiscal_year, pid))
-
-
-def set_budget_lines(proposal_id: int, lines: list[dict]) -> None:
-    """Replace all budget lines; recompute requested_amount as their sum."""
-    _run("DELETE FROM budget_lines WHERE proposal_id = %s", (proposal_id,))
-    total = 0.0
+# --- Budget lines (director-only, per project) ------------------------------
+def set_budget_lines(project_id: int, lines: list[dict]) -> None:
+    """Replace all budget lines for a project."""
+    _run("DELETE FROM budget_lines WHERE project_id = %s", (project_id,))
     for ln in lines:
         amt = round(float(ln.get("amount") or 0), 2)
         if amt == 0 and not (ln.get("description") or "").strip():
             continue
-        _run("INSERT INTO budget_lines (proposal_id, category, description, amount) "
+        _run("INSERT INTO budget_lines (project_id, category, description, amount) "
              "VALUES (%s,%s,%s,%s)",
-             (proposal_id, ln["category"], ln.get("description", ""), amt))
-        total += amt
-    _run("UPDATE proposals SET requested_amount = %s WHERE id = %s",
-         (round(total, 2), proposal_id))
+             (project_id, ln["category"], ln.get("description", ""), amt))
 
 
-def list_budget_lines(proposal_id: int):
-    return _q("SELECT * FROM budget_lines WHERE proposal_id = %s ORDER BY id",
-              (proposal_id,))
+def list_budget_lines(project_id: int):
+    return _q("SELECT * FROM budget_lines WHERE project_id = %s ORDER BY id",
+              (project_id,))
 
 
-def get_proposal(pid: int):
-    return _one("SELECT * FROM proposals WHERE id = %s", (pid,))
+def project_budget_total(project_id: int) -> float:
+    return _one("SELECT COALESCE(SUM(amount),0) AS t FROM budget_lines "
+                "WHERE project_id = %s", (project_id,))["t"]
 
 
-def list_proposals(director_id: str | None = None, status: str | None = None):
-    sql = ("SELECT p.*, u.name AS director_name, pr.name AS project_name "
-           "FROM proposals p JOIN profiles u ON u.id = p.director_id "
-           "LEFT JOIN projects pr ON pr.id = p.project_id WHERE TRUE")
-    args = []
-    if director_id:
-        sql += " AND p.director_id = %s"; args.append(director_id)
-    if status:
-        sql += " AND p.status = %s"; args.append(status)
-    return _q(sql + " ORDER BY p.created_at DESC", args)
-
-
-def submit_proposal(pid: int) -> None:
-    _run("UPDATE proposals SET status='submitted' WHERE id=%s AND status='draft'",
-         (pid,))
-
-
-def decide_proposal(pid: int, approve: bool, decided_by: str, note: str = "") -> None:
-    p = get_proposal(pid)
-    if not p:
-        raise ValueError("no such proposal")
-    project_id = p["project_id"]
-    if approve and project_id is None:
-        project_id = create_project(p["title"], p["summary"], p["director_id"])
-    status = "approved" if approve else "rejected"
-    _run("UPDATE proposals SET status=%s, project_id=%s, decision_note=%s, "
-         "decided_by=%s, decided_at=%s WHERE id=%s",
-         (status, project_id, note, decided_by, now(), pid))
-
-
-# --- Transactions -----------------------------------------------------------
-def create_transaction(txn_date, type_, project_id, category, description,
-                       amount, recorded_by) -> int:
-    if type_ not in ("expense", "income"):
-        raise ValueError(type_)
+# --- Progress updates (open posting: any member) ----------------------------
+def add_progress(project_id, author_id, status, note, week_start=None) -> int:
+    if status not in PROGRESS_STATUSES:
+        raise ValueError(status)
     return _insert(
-        "INSERT INTO transactions (txn_date, type, project_id, category, "
-        "description, amount, recorded_by, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-        (txn_date, type_, project_id, category, description,
-         round(abs(float(amount)), 2), recorded_by, now()))
+        "INSERT INTO progress_updates (project_id, author_id, week_start, status, "
+        "note, created_at) VALUES (%s,%s,%s,%s,%s,%s)",
+        (project_id, author_id, week_start or week_monday(), status, note, now()))
 
 
-def list_transactions(project_id: int | None = None):
-    sql = ("SELECT t.*, pr.name AS project_name FROM transactions t "
-           "LEFT JOIN projects pr ON pr.id = t.project_id")
+def list_progress(project_id: int | None = None, limit: int | None = None):
+    sql = ("SELECT g.*, u.name AS author_name, pr.name AS project_name "
+           "FROM progress_updates g LEFT JOIN profiles u ON u.id = g.author_id "
+           "JOIN projects pr ON pr.id = g.project_id")
     args = []
     if project_id:
-        sql += " WHERE t.project_id = %s"; args.append(project_id)
-    return _q(sql + " ORDER BY t.txn_date DESC, t.id DESC", args)
+        sql += " WHERE g.project_id = %s"
+        args.append(project_id)
+    sql += " ORDER BY g.week_start DESC, g.created_at DESC, g.id DESC"
+    if limit:
+        sql += " LIMIT %s"
+        args.append(limit)
+    return _q(sql, args)
 
 
-# --- Finance summaries ------------------------------------------------------
-def org_totals() -> dict:
-    row = _one(
-        "SELECT "
-        " COALESCE(SUM(amount) FILTER (WHERE type='income'),0)  AS income, "
-        " COALESCE(SUM(amount) FILTER (WHERE type='expense'),0) AS expense "
-        "FROM transactions")
-    income, expense = row["income"], row["expense"]
-    approved = _one("SELECT COALESCE(SUM(requested_amount),0) AS b "
-                    "FROM proposals WHERE status='approved'")["b"]
-    return {"income": income, "expense": expense, "net": income - expense,
-            "approved_budget": approved}
-
-
-def spend_by_category():
-    return _q("SELECT category, "
-              "COALESCE(SUM(amount) FILTER (WHERE type='expense'),0) AS spent "
-              "FROM transactions GROUP BY category ORDER BY spent DESC")
-
-
-def spend_by_project():
+def latest_progress_by_project():
+    """Most recent update per project (for the overview at-a-glance)."""
     return _q(
-        "SELECT pr.id, pr.name, "
-        " COALESCE(SUM(t.amount) FILTER (WHERE t.type='expense'),0) AS spent "
-        "FROM projects pr LEFT JOIN transactions t ON t.project_id = pr.id "
-        "GROUP BY pr.id, pr.name ORDER BY spent DESC")
-
-
-def budget_vs_actual(project_id: int) -> list[dict]:
-    budget = _q(
-        "SELECT bl.category, COALESCE(SUM(bl.amount),0) AS budget "
-        "FROM budget_lines bl JOIN proposals p ON p.id = bl.proposal_id "
-        "WHERE p.project_id = %s AND p.status = 'approved' GROUP BY bl.category",
-        (project_id,))
-    actual = _q(
-        "SELECT category, COALESCE(SUM(amount),0) AS spent FROM transactions "
-        "WHERE project_id = %s AND type = 'expense' GROUP BY category",
-        (project_id,))
-    b = {r["category"]: r["budget"] for r in budget}
-    a = {r["category"]: r["spent"] for r in actual}
-    out = []
-    for cat in sorted(set(b) | set(a), key=lambda c: (c not in CATEGORIES, c)):
-        bd, sp = b.get(cat, 0.0), a.get(cat, 0.0)
-        out.append({"category": cat, "budget": bd, "spent": sp,
-                    "remaining": round(bd - sp, 2)})
-    return out
+        "SELECT DISTINCT ON (g.project_id) g.project_id, g.status, g.week_start, "
+        "g.note, u.name AS author_name FROM progress_updates g "
+        "LEFT JOIN profiles u ON u.id = g.author_id "
+        "ORDER BY g.project_id, g.week_start DESC, g.created_at DESC, g.id DESC")
