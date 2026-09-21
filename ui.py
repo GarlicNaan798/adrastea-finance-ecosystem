@@ -77,6 +77,11 @@ _STYLE = f"""
 html, body, [class*="st-"], input, textarea, select, button {{
     font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
 }}
+/* Keep Streamlit's Material icons as glyphs — the broad rule above would
+   otherwise render them as their ligature text ("visibility", the sidebar's
+   "keyboard_double_arrow_left"), which also overflows into nearby elements. */
+[data-testid="stIconMaterial"], span.material-symbols-rounded,
+span.material-symbols-outlined {{ font-family: 'Material Symbols Rounded' !important; }}
 h1, h2, h3 {{ font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; }}
 h1 {{ font-weight: 600; }} h2, h3 {{ font-weight: 500; }}
 
