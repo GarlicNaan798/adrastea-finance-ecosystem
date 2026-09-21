@@ -39,6 +39,16 @@ if my_tasks:
             hide_index=True, width='stretch')
     st.write("")
 
+ums = core.upcoming_milestones()
+if ums:
+    with st.container(border=True):
+        st.subheader("Upcoming deadlines")
+        st.dataframe(pd.DataFrame([{
+            "Milestone": m["title"], "Project": m["project_name"],
+            "Track": m["track"] or "—", "Due": m["due_date"]} for m in ums]),
+            hide_index=True, width='stretch')
+    st.write("")
+
 if not projects:
     st.info("No projects yet." + (" Create one on the **Projects** page."
             if (role == "founder" or owned) else ""))

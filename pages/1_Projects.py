@@ -1,6 +1,8 @@
 """Projects. Everyone browses. A founder or a track's director creates/deletes,
 sets budgets and the track. Leads (and directors) edit details on their track's
 projects. Budget/create/delete stay with founders and the track director."""
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
@@ -64,6 +66,12 @@ def browse():
                     "Amount": core.money(b["amount"])} for b in bl]),
                     hide_index=True, width='stretch')
                 st.caption(f'Total: {core.money(core.project_budget_total(p["id"]))}')
+            ms = core.list_milestones(p["id"])
+            if ms:
+                st.markdown("**Milestones**")
+                for m in ms:
+                    st.markdown(f'- {m["title"]} — {m["due_date"] or "no date"}'
+                                f'{" (done)" if m["done"] else ""}')
 
 
 def editor():
@@ -127,6 +135,29 @@ def editor():
                     core.add_project_link(pid, lbl, u, uid); st.success("Added."); st.rerun()
                 else:
                     st.error("Enter a valid http(s) URL.")
+
+    # Milestones (any editor)
+    if ex and ce:
+        st.markdown("#### Milestones")
+        for m in core.list_milestones(pid):
+            mc1, mc2 = st.columns([5, 1])
+            done = mc1.checkbox(f'{m["title"]} · {m["due_date"] or "no date"}',
+                                value=m["done"], key=f"ms_{m['id']}")
+            if done != m["done"]:
+                core.toggle_milestone(m["id"], done); st.rerun()
+            if mc2.button("Remove", key=f"msrm_{m['id']}", width='stretch'):
+                core.remove_milestone(m["id"]); st.rerun()
+        with st.form(f"addms_{pid}", clear_on_submit=True):
+            g1, g2 = st.columns([3, 2])
+            mt = g1.text_input("Milestone")
+            md = g2.date_input("Due (optional)", value=None)
+            if st.form_submit_button("Add milestone"):
+                if mt.strip():
+                    core.add_milestone(pid, mt, md.isoformat()
+                                       if isinstance(md, date) else None)
+                    st.success("Added."); st.rerun()
+                else:
+                    st.error("Add a milestone title.")
 
     # Budget + delete (managers only)
     if ex and can_manage:

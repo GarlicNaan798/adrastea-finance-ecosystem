@@ -473,3 +473,30 @@ def archive_task(task_id: int) -> None:
 def delete_task(task_id: int) -> None:
     """Hard delete. Not used by the UI — reserved for tests/cleanup."""
     _run("DELETE FROM tasks WHERE id = %s", (task_id,))
+
+
+# --- Milestones / deadlines (feed the calendar) -----------------------------
+def add_milestone(project_id: int, title: str, due_date: str | None) -> int:
+    return _insert("INSERT INTO milestones (project_id, title, due_date, created_at) "
+                   "VALUES (%s,%s,%s,%s)",
+                   (project_id, (title or "").strip(), due_date or None, now()))
+
+
+def list_milestones(project_id: int):
+    return _q("SELECT * FROM milestones WHERE project_id = %s "
+              "ORDER BY (due_date IS NULL), due_date, id", (project_id,))
+
+
+def toggle_milestone(mid: int, done: bool) -> None:
+    _run("UPDATE milestones SET done = %s WHERE id = %s", (done, mid))
+
+
+def remove_milestone(mid: int) -> None:
+    _run("DELETE FROM milestones WHERE id = %s", (mid,))
+
+
+def upcoming_milestones(limit: int = 8):
+    return _q("SELECT m.*, pr.name AS project_name, pr.track FROM milestones m "
+              "JOIN projects pr ON pr.id = m.project_id "
+              "WHERE m.done = false AND m.due_date IS NOT NULL "
+              "AND pr.archived_at IS NULL ORDER BY m.due_date LIMIT %s", (limit,))

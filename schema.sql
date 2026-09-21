@@ -3,6 +3,7 @@
 -- This rebuilds the app tables. It is safe on a fresh project; it DROPS the
 -- app tables (and their data) if you re-run it on a populated database.
 
+drop table if exists milestones cascade;
 drop table if exists tasks cascade;
 drop table if exists progress_updates cascade;
 drop table if exists project_links cascade;
@@ -119,3 +120,14 @@ create table tasks (
     created_at  text not null
 );
 create index if not exists tasks_by_assignee on tasks(assignee_id);
+
+-- Milestones / deadlines per project (feed the calendar).
+create table milestones (
+    id         bigint generated always as identity primary key,
+    project_id bigint not null references projects(id) on delete cascade,
+    title      text not null,
+    due_date   text,
+    done       boolean not null default false,
+    created_at text not null
+);
+create index if not exists milestones_by_due on milestones(due_date);
