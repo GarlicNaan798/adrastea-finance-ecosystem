@@ -500,3 +500,19 @@ def upcoming_milestones(limit: int = 8):
               "JOIN projects pr ON pr.id = m.project_id "
               "WHERE m.done = false AND m.due_date IS NOT NULL "
               "AND pr.archived_at IS NULL ORDER BY m.due_date LIMIT %s", (limit,))
+
+
+# --- Comment threads (under a discussion update or a task) -------------------
+def add_comment(parent_type: str, parent_id: int, author_id: str, body: str) -> int:
+    if parent_type not in ("update", "task"):
+        raise ValueError(parent_type)
+    return _insert("INSERT INTO comments (parent_type, parent_id, author_id, body, "
+                   "created_at) VALUES (%s,%s,%s,%s,%s)",
+                   (parent_type, parent_id, author_id, (body or "").strip(), now()))
+
+
+def list_comments(parent_type: str, parent_id: int):
+    return _q("SELECT c.*, u.name AS author_name FROM comments c "
+              "LEFT JOIN profiles u ON u.id = c.author_id "
+              "WHERE c.parent_type = %s AND c.parent_id = %s "
+              "ORDER BY c.created_at, c.id", (parent_type, parent_id))

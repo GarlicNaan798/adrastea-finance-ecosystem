@@ -3,6 +3,7 @@
 -- This rebuilds the app tables. It is safe on a fresh project; it DROPS the
 -- app tables (and their data) if you re-run it on a populated database.
 
+drop table if exists comments cascade;
 drop table if exists milestones cascade;
 drop table if exists tasks cascade;
 drop table if exists progress_updates cascade;
@@ -131,3 +132,14 @@ create table milestones (
     created_at text not null
 );
 create index if not exists milestones_by_due on milestones(due_date);
+
+-- Comment threads under a discussion update or a task (parent_type + parent_id).
+create table comments (
+    id          bigint generated always as identity primary key,
+    parent_type text not null check (parent_type in ('update','task')),
+    parent_id   bigint not null,
+    author_id   uuid references profiles(id),
+    body        text not null,
+    created_at  text not null
+);
+create index if not exists comments_by_parent on comments(parent_type, parent_id);

@@ -151,6 +151,28 @@ def status_pill(status: str) -> str:
             f'white-space:nowrap">{label}</span>')
 
 
+def comment_thread(parent_type: str, parent_id: int, user: dict,
+                   can_comment: bool) -> None:
+    """Collapsible comment thread under a discussion update or a task."""
+    comments = core.list_comments(parent_type, parent_id)
+    with st.expander(f"Comments ({len(comments)})"):
+        for c in comments:
+            when = c["created_at"][:16].replace("T", " ")
+            st.markdown(f'**{c["author_name"] or "—"}** '
+                        f'<span class="meta">· {when}</span>', unsafe_allow_html=True)
+            st.write(c["body"])
+        if can_comment:
+            with st.form(f"cmt_{parent_type}_{parent_id}", clear_on_submit=True):
+                body = st.text_area("Reply", height=68, label_visibility="collapsed",
+                                    placeholder="Write a reply…")
+                if st.form_submit_button("Reply"):
+                    if body.strip():
+                        core.add_comment(parent_type, parent_id, user["id"], body)
+                        st.rerun()
+        elif not comments:
+            st.caption("No comments yet.")
+
+
 def _auth_screen(ck) -> None:
     _, mid, _ = st.columns([1, 1.35, 1])
     with mid:

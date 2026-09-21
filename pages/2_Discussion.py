@@ -63,4 +63,5 @@ for g in feed:
         f'{g["author_name"] or "—"}</span>', unsafe_allow_html=True)
     if g["note"]:
         st.write(g["note"])
+    ui.comment_thread("update", g["id"], user, can_post(g["track"]))
     st.divider()

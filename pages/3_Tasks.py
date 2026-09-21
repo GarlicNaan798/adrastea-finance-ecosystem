@@ -39,6 +39,7 @@ with st.container(border=True):
                      disabled=(ns == t["status"])):
             core.set_task_status(t["id"], ns)
             st.rerun()
+        ui.comment_thread("task", t["id"], user, True)
 
 projects = core.list_projects()
 assignable = [p for p in projects if can_assign(p["track"])]
@@ -87,5 +88,7 @@ for p in assignable:
         if c2.button("Archive", key=f"arctask_{t['id']}", width='stretch'):
             core.archive_task(t["id"])
             st.rerun()
+        ui.comment_thread("task", t["id"], user,
+                          can_assign(p["track"]) or t["assignee_id"] == uid)
 if not any_tasks:
     st.caption("No tasks yet on your tracks.")
