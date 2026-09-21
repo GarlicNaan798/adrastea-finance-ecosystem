@@ -42,10 +42,16 @@ def test_roles_and_tiers():
     assert "director" not in core.ASSIGNABLE_TIERS  # director is allowlist-only
 
 
+def test_tracks():
+    assert "CHASM Project" in core.TRACKS
+    assert len(core.TRACKS) == 5
+    assert "Bioengineering & Tech" in core.TRACKS
+
+
 def test_can_edit_project_role():
     assert core.can_edit_project_role("director", False) is True
     assert core.can_edit_project_role("specialist", False) is True
-    assert core.can_edit_project_role("member", True) is True     # assigned lead
+    assert core.can_edit_project_role("member", True) is True     # lead of the track
     assert core.can_edit_project_role("member", False) is False   # plain member
 
 

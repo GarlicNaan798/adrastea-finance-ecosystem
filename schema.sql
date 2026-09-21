@@ -4,7 +4,9 @@
 -- app tables (and their data) if you re-run it on a populated database.
 
 drop table if exists progress_updates cascade;
-drop table if exists project_leads cascade;
+drop table if exists track_leads cascade;
+drop table if exists track_owners cascade;
+drop table if exists project_leads cascade;   -- legacy (replaced by track_leads)
 drop table if exists budget_lines cascade;
 drop table if exists projects cascade;
 -- legacy tables from the previous (finance) version, if present:
@@ -37,7 +39,7 @@ create trigger on_auth_user_created
     after insert on auth.users
     for each row execute function public.handle_new_user();
 
--- Projects: set by directors (name, description, requirements, budget).
+-- Projects: set by directors (name, description, requirements, budget, track).
 create table projects (
     id           bigint generated always as identity primary key,
     name         text not null,
@@ -45,6 +47,7 @@ create table projects (
     requirements text,
     status       text not null default 'active'
                  check (status in ('planning','active','on_hold','complete')),
+    track        text,   -- one of core.TRACKS (validated in the app)
     director_id  uuid references profiles(id),
     created_at   text not null
 );
@@ -70,11 +73,18 @@ create table progress_updates (
 );
 create index if not exists progress_by_project on progress_updates(project_id, week_start desc);
 
--- Per-project leads. Directors assign these; a lead can edit their project's
--- details/requirements/status/progress (not the budget).
-create table project_leads (
-    project_id bigint not null references projects(id) on delete cascade,
+-- Track leads. Directors assign a user to a track; a lead can edit any project
+-- in that track (details/requirements/status/progress, not the budget).
+create table track_leads (
+    track      text not null,
     user_id    uuid not null references profiles(id) on delete cascade,
     created_at text not null,
-    primary key (project_id, user_id)
+    primary key (track, user_id)
+);
+
+-- Optional: the coordinator (a director) responsible for a track. Display only;
+-- directors have access to all tracks regardless.
+create table track_owners (
+    track   text primary key,
+    user_id uuid not null references profiles(id) on delete cascade
 );

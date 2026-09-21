@@ -33,6 +33,14 @@ CATEGORIES = (
     "Other",
 )
 
+TRACKS = (
+    "Bioengineering & Tech",
+    "Health & Physiology",
+    "Media & Marketing",
+    "Policy & Advocacy",
+    "CHASM Project",
+)
+
 PROJECT_STATUSES = ("planning", "active", "on_hold", "complete")
 PROGRESS_STATUSES = ("on_track", "at_risk", "blocked", "done")
 PROGRESS_LABELS = {"on_track": "On track", "at_risk": "At risk",
@@ -242,30 +250,32 @@ def list_profiles():
 
 
 # --- Projects (directors set these) -----------------------------------------
-def create_project(name, description, requirements, status, director_id) -> int:
+def create_project(name, description, requirements, status, track, director_id) -> int:
     return _insert(
-        "INSERT INTO projects (name, description, requirements, status, "
-        "director_id, created_at) VALUES (%s,%s,%s,%s,%s,%s)",
-        (name.strip(), description, requirements, status, director_id, now()))
+        "INSERT INTO projects (name, description, requirements, status, track, "
+        "director_id, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (name.strip(), description, requirements, status, track, director_id, now()))
 
 
-def update_project(pid, name, description, requirements, status) -> None:
-    _run("UPDATE projects SET name=%s, description=%s, requirements=%s, status=%s "
-         "WHERE id=%s", (name.strip(), description, requirements, status, pid))
+def update_project(pid, name, description, requirements, status, track) -> None:
+    _run("UPDATE projects SET name=%s, description=%s, requirements=%s, status=%s, "
+         "track=%s WHERE id=%s",
+         (name.strip(), description, requirements, status, track, pid))
 
 
 def delete_project(pid) -> None:
     _run("DELETE FROM projects WHERE id = %s", (pid,))
 
 
-def list_projects(status: str | None = None):
+def list_projects(status: str | None = None, track: str | None = None):
     sql = ("SELECT p.*, u.name AS director_name FROM projects p "
-           "LEFT JOIN profiles u ON u.id = p.director_id")
+           "LEFT JOIN profiles u ON u.id = p.director_id WHERE TRUE")
     args = []
     if status:
-        sql += " WHERE p.status = %s"
-        args.append(status)
-    return _q(sql + " ORDER BY (p.status='complete'), p.name", args)
+        sql += " AND p.status = %s"; args.append(status)
+    if track:
+        sql += " AND p.track = %s"; args.append(track)
+    return _q(sql + " ORDER BY (p.status='complete'), p.track, p.name", args)
 
 
 def get_project(pid: int):
@@ -273,34 +283,50 @@ def get_project(pid: int):
                 "LEFT JOIN profiles u ON u.id = p.director_id WHERE p.id = %s", (pid,))
 
 
-# --- Project leads + permissions --------------------------------------------
-def assign_lead(project_id: int, user_id: str) -> None:
-    _run("INSERT INTO project_leads (project_id, user_id, created_at) "
-         "VALUES (%s,%s,%s) ON CONFLICT (project_id, user_id) DO NOTHING",
-         (project_id, user_id, now()))
+# --- Track leads, coordinators + permissions --------------------------------
+def assign_track_lead(track: str, user_id: str) -> None:
+    _run("INSERT INTO track_leads (track, user_id, created_at) VALUES (%s,%s,%s) "
+         "ON CONFLICT (track, user_id) DO NOTHING", (track, user_id, now()))
 
 
-def remove_lead(project_id: int, user_id: str) -> None:
-    _run("DELETE FROM project_leads WHERE project_id = %s AND user_id = %s",
-         (project_id, user_id))
+def remove_track_lead(track: str, user_id: str) -> None:
+    _run("DELETE FROM track_leads WHERE track = %s AND user_id = %s",
+         (track, user_id))
 
 
-def list_project_leads(project_id: int):
-    return _q("SELECT pl.user_id, u.name, u.email FROM project_leads pl "
-              "JOIN profiles u ON u.id = pl.user_id WHERE pl.project_id = %s "
-              "ORDER BY u.name", (project_id,))
+def list_track_leads(track: str):
+    return _q("SELECT tl.user_id, u.name, u.email FROM track_leads tl "
+              "JOIN profiles u ON u.id = tl.user_id WHERE tl.track = %s "
+              "ORDER BY u.name", (track,))
 
 
-def lead_project_ids(user_id: str) -> set:
-    rows = _q("SELECT project_id FROM project_leads WHERE user_id = %s", (user_id,))
-    return {r["project_id"] for r in rows}
+def lead_tracks(user_id: str) -> set:
+    return {r["track"] for r in
+            _q("SELECT track FROM track_leads WHERE user_id = %s", (user_id,))}
 
 
-def can_edit_project_role(role: str, is_lead: bool) -> bool:
-    """Pure permission rule: who may edit a project's details/requirements/
-    status/progress. Directors and specialists edit any project; a member edits
-    a project only if assigned as its lead. Budget stays director-only."""
-    return role in ("director", "specialist") or is_lead
+def set_track_coordinator(track: str, user_id: str | None) -> None:
+    """Designate a track's coordinator (a director). None clears it."""
+    if user_id is None:
+        _run("DELETE FROM track_owners WHERE track = %s", (track,))
+    else:
+        _run("INSERT INTO track_owners (track, user_id) VALUES (%s,%s) "
+             "ON CONFLICT (track) DO UPDATE SET user_id = EXCLUDED.user_id",
+             (track, user_id))
+
+
+def track_coordinators() -> dict:
+    """{track: {'user_id':..., 'name':...}} for tracks that have a coordinator."""
+    return {r["track"]: {"user_id": r["user_id"], "name": r["name"]}
+            for r in _q("SELECT o.track, o.user_id, u.name FROM track_owners o "
+                        "JOIN profiles u ON u.id = o.user_id")}
+
+
+def can_edit_project_role(role: str, is_track_lead: bool) -> bool:
+    """Pure permission rule for editing a project's details/requirements/status/
+    progress. Directors and specialists edit any track; a member edits only
+    projects in a track they lead. Budget/create/delete stay director-only."""
+    return role in ("director", "specialist") or is_track_lead
 
 
 # --- Budget lines (director-only, per project) ------------------------------

@@ -18,7 +18,16 @@ if not profs:
 uid = profs[0]["id"]
 
 pid = core.create_project("SMOKE TEST — delete me", "desc",
-                          "needs X and Y", "active", uid)
+                          "needs X and Y", "active", "CHASM Project", uid)
+# track leads + coordinator round-trip
+core.assign_track_lead("CHASM Project", uid)
+assert "CHASM Project" in core.lead_tracks(uid)
+assert core.can_edit_project_role("member", "CHASM Project" in core.lead_tracks(uid))
+core.set_track_coordinator("CHASM Project", uid)
+assert core.track_coordinators().get("CHASM Project", {}).get("user_id") == uid
+core.set_track_coordinator("CHASM Project", None)
+core.remove_track_lead("CHASM Project", uid)
+assert "CHASM Project" not in core.lead_tracks(uid)
 core.set_budget_lines(pid, [
     {"category": "Equipment", "description": "sensors", "amount": 1000},
     {"category": "Travel", "description": "fieldwork", "amount": 500.50},

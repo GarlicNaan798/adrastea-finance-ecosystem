@@ -16,11 +16,18 @@ Tiers, from most to least access:
 | `director`   | email is in `DIRECTOR_EMAILS` | everything: create/delete projects, set budgets, assign leads, promote specialists |
 | `specialist` | a director promotes them (Team page) | edit **any** project's details, requirements, status and progress (not budgets) |
 | `member`     | any other registered email | view projects/budgets, post weekly progress |
-| **lead** | a director assigns them to a project | *(per-project hat, on top of their tier)* edit **that** project's details, requirements, status and progress |
+| **lead** | a director assigns them to a **track** (Team page) | *(per-track hat, on top of their tier)* edit any project **in that track** — details, requirements, status and progress |
 
 Directors and specialists are reconciled on every sign-in; a specialist promotion
 is preserved across logins, and removing someone from `DIRECTOR_EMAILS` demotes
 them on their next sign-in.
+
+### Tracks
+
+Projects belong to one of five tracks: **Bioengineering & Tech**, **Health &
+Physiology**, **Media & Marketing**, **Policy & Advocacy**, and **CHASM Project**.
+Each track can have a **coordinator** (a director) and its own **leads**. Directors
+and specialists work across all tracks; leads work only within their track(s).
 
 ## Get the app
 
