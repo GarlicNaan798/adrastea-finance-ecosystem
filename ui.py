@@ -1,4 +1,8 @@
-"""Shared Streamlit layer: brand, styling, Supabase login/sign-up, role guards."""
+"""Shared Streamlit layer: brand, styling, Supabase login/sign-up, role guards.
+
+Colors come from native Streamlit theming (.streamlit/config.toml, light + dark).
+This module only adds brand bits and a few theme-aware tokens (--adr-*).
+"""
 from __future__ import annotations
 
 import streamlit as st
@@ -6,11 +10,9 @@ from streamlit_cookies_controller import CookieController
 
 import core
 
-# Palette (kept in sync with .streamlit/config.toml and the brand kit)
+# Light-mode reference values (charts etc.); UI colors come from config theme.
 PAPER, INK, CLAY, NAVY, STONE = "#FBFAF7", "#23211C", "#9E6B4B", "#17263A", "#E7E3D8"
 
-# Persistent login: a rotating Supabase refresh token stored in a browser cookie,
-# so a hard refresh restores the session instead of logging out.
 _COOKIE = "adr_session"
 _COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 
@@ -49,69 +51,79 @@ def _restore_session(ck) -> dict | None:
         return None
     prof = core.sync_profile(sess["id"], sess["email"])  # role from allowlist
     st.session_state.user = {**sess, "name": prof["name"], "role": prof["role"]}
-    _save_session(ck, sess)  # persist the rotated token
+    _save_session(ck, sess)
     return st.session_state.user
 
 
-def mark(size: int = 34, color: str = INK) -> str:
-    """Inline Adrastea mark: an 'A' whose crossbar is an orbit, moon on it."""
+def mark(size: int = 34) -> str:
+    """Inline Adrastea mark. 'A' inherits currentColor; orbit/moon use the
+    theme accent, so it reads correctly in both light and dark."""
     return (
         f'<svg width="{size}" height="{size}" viewBox="0 0 100 100" '
-        f'style="display:block;flex:none">'
-        f'<path d="M18 86 L50 15 L82 86" fill="none" stroke="{color}" '
+        f'style="display:block;flex:none" aria-hidden="true">'
+        f'<path d="M18 86 L50 15 L82 86" fill="none" stroke="currentColor" '
         f'stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'
-        f'<ellipse cx="50" cy="56" rx="40" ry="13" fill="none" stroke="{CLAY}" '
+        f'<ellipse cx="50" cy="56" rx="40" ry="13" fill="none" stroke="var(--adr-accent)" '
         f'stroke-width="3.6" transform="rotate(-18 50 56)"/>'
-        f'<circle cx="88" cy="44" r="5.4" fill="{CLAY}"/></svg>'
+        f'<circle cx="88" cy="44" r="5.4" fill="var(--adr-accent)"/></svg>'
     )
 
 
-_STYLE = f"""
+_STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
 
-html, body, [class*="st-"], input, textarea, select, button {{
-    font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
-}}
-/* Keep Streamlit's Material icons as glyphs — the broad rule above would
-   otherwise render them as their ligature text ("visibility", the sidebar's
-   "keyboard_double_arrow_left"), which also overflows into nearby elements. */
-[data-testid="stIconMaterial"], span.material-symbols-rounded,
-span.material-symbols-outlined {{ font-family: 'Material Symbols Rounded' !important; }}
-h1, h2, h3 {{ font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; }}
-h1 {{ font-weight: 600; }} h2, h3 {{ font-weight: 500; }}
+:root { --adr-accent:#7E4F33; --adr-muted:#635D53; --adr-ink:#23211C;
+        --adr-hair:rgba(35,33,28,.10); }
+@media (prefers-color-scheme: dark) {
+  :root { --adr-accent:#C08A63; --adr-muted:#A79E90; --adr-ink:#ECE7DD;
+          --adr-hair:rgba(255,255,255,.12); }
+}
 
-.block-container {{ max-width: 1180px; padding-top: 2.4rem; padding-bottom: 4rem; }}
+.block-container { max-width: 1180px; padding-top: 2.4rem; padding-bottom: 4rem; }
 
+/* Hide Streamlit chrome for a cleaner, app-like surface */
 #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"],
-.stDeployButton, footer {{ display: none !important; }}
-[data-testid="stHeader"] {{ background: transparent; }}
+.stDeployButton, footer { display: none !important; }
+[data-testid="stHeader"] { background: transparent; }
 
-/* Brand bits */
-.overline {{ font-size: .72rem; letter-spacing: .2em; text-transform: uppercase;
-    color: {CLAY}; font-weight: 600; margin: 0 0 .1rem 2px; }}
-.brandbar {{ display:flex; align-items:center; gap:.55rem; padding:.1rem 0 1rem; }}
-.brandbar .name {{ font-family:'Fraunces',Georgia,serif; font-size:1.45rem;
-    font-weight:600; color:{INK}; letter-spacing:-.01em; }}
+/* Quiet, flat metrics */
+[data-testid="stMetric"] { background: transparent; padding: 0; }
+[data-testid="stMetricLabel"] p { text-transform: uppercase; letter-spacing: .07em;
+  font-size: .72rem; color: var(--adr-muted); }
+[data-testid="stMetricValue"] { font-family: 'Fraunces', Georgia, serif; font-weight: 500; }
 
-/* Flat, quiet metrics */
-[data-testid="stMetric"] {{ background: transparent; padding: 0; }}
-[data-testid="stMetricLabel"] p {{ opacity:.6; text-transform:uppercase;
-    letter-spacing:.07em; font-size:.72rem; }}
-[data-testid="stMetricValue"] {{ font-family:'Fraunces',Georgia,serif; font-weight:500; }}
+/* Accessible muted text */
+.meta { color: var(--adr-muted); }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--adr-muted); }
 
-/* Cards / bordered containers */
-[data-testid="stVerticalBlockBorderWrapper"] {{ border-radius:14px; }}
-
-/* Minimal buttons */
-.stButton > button, .stFormSubmitButton > button {{
-    border-radius:8px; box-shadow:none; font-weight:500; }}
+/* Brand */
+.overline { font-size: .72rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--adr-accent); font-weight: 600; margin: 0 0 .1rem 2px; }
+.brandbar { display: flex; align-items: center; gap: .55rem; padding: .1rem 0 1rem;
+  color: var(--adr-ink); }
+.brandbar .name { font-family: 'Fraunces', Georgia, serif; font-size: 1.45rem;
+  font-weight: 600; letter-spacing: -.01em; }
 
 /* Subtle separations */
-[data-testid="stSidebar"] {{ border-right:1px solid rgba(0,0,0,.06); }}
-[data-testid="stExpander"] {{ border-radius:10px; }}
-hr {{ margin:1.3rem 0; opacity:.5; }}
-.stTabs [data-baseweb="tab-list"] {{ gap:1.6rem; }}
+[data-testid="stSidebar"] { border-right: 1px solid var(--adr-hair); }
+[data-testid="stExpander"] { border-radius: 12px; }
+hr { margin: 1.3rem 0; opacity: .5; }
+.stTabs [data-baseweb="tab-list"] { gap: 1.6rem; }
+
+/* Accessibility: visible keyboard focus on every interactive element */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible,
+[data-baseweb="tab"]:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--adr-accent); outline-offset: 2px; border-radius: 4px;
+}
+
+/* Dark mode uses a light clay primary, so give primary buttons dark label text
+   (white-on-clay fails WCAG AA; dark-on-clay passes at 6:1). */
+@media (prefers-color-scheme: dark) {
+  [data-testid^="stBaseButton-primary"],
+  [data-testid^="stBaseButton-primary"] * { color: #1A1714 !important; }
+}
 </style>
 """
 
@@ -126,31 +138,31 @@ def page_header(title: str, overline: str | None = None) -> None:
     st.markdown(f"# {title}")
 
 
-_STATUS_COLORS = {"on_track": "#3E6B57", "at_risk": "#9A6B2F",
-                  "blocked": "#9B3D33", "done": NAVY}
+# Solid pills with white text — pass WCAG AA in both light and dark.
+_STATUS_COLORS = {"on_track": "#2F6B4F", "at_risk": "#8A5A1E",
+                  "blocked": "#9B3D33", "done": "#3A4A5E"}
 
 
 def status_pill(status: str) -> str:
-    """Inline HTML pill for a progress status (use with unsafe_allow_html)."""
     label = core.PROGRESS_LABELS.get(status, status)
-    c = _STATUS_COLORS.get(status, "#666")
-    return (f'<span style="background:{c}1A;color:{c};border:1px solid {c}55;'
-            f'border-radius:999px;padding:.12rem .6rem;font-size:.72rem;'
-            f'font-weight:600;white-space:nowrap">{label}</span>')
+    c = _STATUS_COLORS.get(status, "#555")
+    return (f'<span style="background:{c};color:#fff;border-radius:999px;'
+            f'padding:.14rem .62rem;font-size:.72rem;font-weight:600;'
+            f'white-space:nowrap">{label}</span>')
 
 
 def _auth_screen(ck) -> None:
     _, mid, _ = st.columns([1, 1.35, 1])
     with mid:
         st.markdown(
-            f'<div style="text-align:center;padding:1.2rem 0 .4rem">'
+            f'<div style="text-align:center;padding:1.2rem 0 .4rem;color:var(--adr-ink)">'
             f'<div style="display:flex;justify-content:center">{mark(58)}</div>'
             f'<div style="font-family:\'Fraunces\',Georgia,serif;font-size:2.4rem;'
-            f'font-weight:600;color:{INK};margin-top:.5rem">Adrastea</div>'
-            f'<div style="font-size:.72rem;letter-spacing:.28em;color:{CLAY};'
-            f'margin-top:.2rem">RESEARCH&nbsp;&nbsp;FOUNDATION</div>'
+            f'font-weight:600;margin-top:.5rem">Adrastea</div>'
+            f'<div style="font-size:.72rem;letter-spacing:.24em;color:var(--adr-accent);'
+            f'margin-top:.2rem;white-space:nowrap">RESEARCH&nbsp;&nbsp;FOUNDATION</div>'
             f'<div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;'
-            f'color:rgba(35,33,28,.55);margin-top:.9rem">Research, held to account.</div>'
+            f'color:var(--adr-muted);margin-top:.9rem">Research, held to account.</div>'
             f'</div>', unsafe_allow_html=True)
         st.write("")
         signin, signup = st.tabs(["Sign in", "Create account"])
@@ -159,8 +171,7 @@ def _auth_screen(ck) -> None:
             with st.form("signin"):
                 email = st.text_input("Email")
                 pw = st.text_input("Password", type="password")
-                if st.form_submit_button("Sign in", width='stretch',
-                                         type="primary"):
+                if st.form_submit_button("Sign in", width='stretch', type="primary"):
                     sess = core.sign_in(email, pw)
                     if not sess:
                         st.error("Invalid email or password.")
@@ -168,7 +179,7 @@ def _auth_screen(ck) -> None:
                         prof = core.sync_profile(sess["id"], sess["email"])
                         st.session_state.user = {**sess, "name": prof["name"],
                                                  "role": prof["role"]}
-                        _save_session(ck, sess)  # remember me across refreshes
+                        _save_session(ck, sess)
                         st.rerun()
 
         with signup:
@@ -185,7 +196,7 @@ def _auth_screen(ck) -> None:
 
 
 def require_login() -> dict:
-    """Render auth if needed; return the current user. Gates 'pending' accounts."""
+    """Render auth if needed; return the current user."""
     apply_style()
     ck = _cookies()
     user = st.session_state.get("user") or _restore_session(ck)

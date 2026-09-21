@@ -1,10 +1,27 @@
+# Native Streamlit theming: shared options + separate light/dark palettes.
+# The app follows the viewer's system light/dark preference.
+
 [theme]
-base = "light"
-primaryColor = "#9E6B4B"            # muted clay accent
+font = "Inter"
+headingFont = "Fraunces"
+baseRadius = "0.5rem"
+showWidgetBorder = true
+
+[theme.light]
 backgroundColor = "#FBFAF7"          # warm paper
-secondaryBackgroundColor = "#F1EFE8" # sidebar / inputs / cards
+secondaryBackgroundColor = "#F1EFE8" # sidebar / cards / inputs
 textColor = "#23211C"                # warm ink
-font = "sans serif"
+primaryColor = "#7E4F33"             # deep clay (AA on paper + white-on-clay)
+borderColor = "#E4DFD4"
+linkColor = "#7E4F33"
+
+[theme.dark]
+backgroundColor = "#1A1714"          # warm near-black
+secondaryBackgroundColor = "#24201B"
+textColor = "#ECE7DD"                # warm cream
+primaryColor = "#C08A63"             # lighter clay for dark ground
+borderColor = "#3A342D"
+linkColor = "#C08A63"
 
 [client]
 toolbarMode = "minimal"

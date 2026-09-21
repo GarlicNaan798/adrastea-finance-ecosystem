@@ -72,6 +72,17 @@ git-ignored browser cookie (`adr_session`, 30 days) and used to restore the
 session on load. Sign out clears it. The cookie layer is fail-safe — if it's
 unavailable the app falls back to signing in each visit.
 
+## Design & accessibility
+
+- **Light + dark mode**, both brand-warm, via native Streamlit theming
+  (`.streamlit/config.toml` `[theme.light]` / `[theme.dark]`); follows the
+  viewer's system preference.
+- **WCAG AA contrast** across text, links, buttons, muted labels, and status
+  pills in both themes (validated); visible keyboard focus rings on every
+  interactive element; status is conveyed by label text, not colour alone.
+- Fonts (Fraunces headings, Inter body) are set through native theme options, so
+  Material icons render as glyphs rather than ligature text.
+
 ## Deploy (later)
 
 Push to GitHub and deploy on [Streamlit Community Cloud](https://share.streamlit.io):

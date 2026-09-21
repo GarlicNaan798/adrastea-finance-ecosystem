@@ -48,7 +48,7 @@ if not feed:
 for g in feed:
     st.markdown(
         f'{ui.status_pill(g["status"])} &nbsp;**{g["project_name"]}** '
-        f'<span style="color:#8a857c">· week of {g["week_start"]} · '
+        f'<span class="meta">· week of {g["week_start"]} · '
         f'{g["author_name"] or "—"}</span>', unsafe_allow_html=True)
     if g["note"]:
         st.write(g["note"])
