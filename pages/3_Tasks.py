@@ -7,6 +7,12 @@ import streamlit as st
 import core
 import ui
 
+try:
+    from streamlit_sortables import sort_items
+    _HAS_BOARD = True
+except Exception:
+    _HAS_BOARD = False
+
 st.set_page_config(page_title="Tasks · Adrastea", page_icon="🌘", layout="wide")
 user = ui.require_login()
 ui.page_header("Tasks", "Work")
@@ -21,16 +27,17 @@ def can_assign(track) -> bool:
     return is_founder or track in owned or track in led
 
 
-def attachments(task, can_edit):
+def attachments(task, can_edit, key_suffix=""):
     links = core.list_task_links(task["id"])
     with st.expander(f'Attachments ({len(links)})'):
         for l in links:
             a, b = st.columns([5, 1])
             a.markdown(f'[{l["label"] or l["url"]}]({l["url"]})')
-            if can_edit and b.button("Remove", key=f"tlrm_{l['id']}", width='stretch'):
+            if can_edit and b.button("Remove", key=f"tlrm_{l['id']}_{key_suffix}",
+                                     width='stretch'):
                 core.delete_task_link(l["id"]); st.rerun()
         if can_edit:
-            with st.form(f"tl_{task['id']}", clear_on_submit=True):
+            with st.form(f"tl_{task['id']}_{key_suffix}", clear_on_submit=True):
                 fa, fb = st.columns([2, 3])
                 lbl = fa.text_input("Label", placeholder="e.g. spec doc")
                 u = fb.text_input("URL", placeholder="https://…")
@@ -61,8 +68,8 @@ with st.container(border=True):
                      disabled=(ns == t["status"])):
             core.set_task_status(t["id"], ns)
             st.rerun()
-        attachments(t, True)
-        ui.comment_thread("task", t["id"], user, True)
+        attachments(t, True, "my")
+        ui.comment_thread("task", t["id"], user, True, "my")
 
 projects = core.list_projects()
 assignable = [p for p in projects if can_assign(p["track"])]
@@ -94,6 +101,42 @@ with st.form("addtask", clear_on_submit=True):
             st.success("Task created.")
             st.rerun()
 
+# --- Board: drag tasks across To-do / In progress / Done --------------------
+st.subheader("Board")
+btracks = sorted({p["track"] for p in assignable})
+bt = st.selectbox("Track", btracks, key="board_track")
+bt_tasks = [t for t in core.list_tasks() if t["track"] == bt]
+_HEADERS = {"To do": "todo", "In progress": "doing", "Done": "done"}
+if not bt_tasks:
+    st.caption("No tasks in this track yet.")
+elif not _HAS_BOARD:
+    st.info("Drag board unavailable — use the list below to change status.")
+else:
+    by_id = {t["id"]: t for t in bt_tasks}
+    cols = {h: [f'#{t["id"]} {t["title"]}' for t in bt_tasks if t["status"] == s]
+            for h, s in _HEADERS.items()}
+    try:
+        res = sort_items(cols, multi_containers=True, direction="horizontal",
+                         key=f"board_{bt}")
+    except Exception:
+        res = None
+        st.info("Drag board unavailable — use the list below to change status.")
+    if res:
+        pairs = (res.items() if isinstance(res, dict)
+                 else [(c.get("header"), c.get("items", [])) for c in res])
+        changed = False
+        for h, items in pairs:
+            ns = _HEADERS.get(h)
+            if not ns:
+                continue
+            for x in items:
+                tid = int(x.split(" ", 1)[0].lstrip("#"))
+                if by_id.get(tid) and by_id[tid]["status"] != ns:
+                    core.set_task_status(tid, ns)
+                    changed = True
+        if changed:
+            st.rerun()
+
 # --- Manage track tasks -----------------------------------------------------
 st.subheader("Track tasks")
 any_tasks = False
@@ -112,7 +155,7 @@ for p in assignable:
             core.archive_task(t["id"])
             st.rerun()
         _ce = can_assign(p["track"]) or t["assignee_id"] == uid
-        attachments(t, _ce)
-        ui.comment_thread("task", t["id"], user, _ce)
+        attachments(t, _ce, "trk")
+        ui.comment_thread("task", t["id"], user, _ce, "trk")
 if not any_tasks:
     st.caption("No tasks yet on your tracks.")

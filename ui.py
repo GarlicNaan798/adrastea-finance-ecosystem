@@ -152,8 +152,9 @@ def status_pill(status: str) -> str:
 
 
 def comment_thread(parent_type: str, parent_id: int, user: dict,
-                   can_comment: bool) -> None:
-    """Collapsible comment thread under a discussion update or a task."""
+                   can_comment: bool, key_suffix: str = "") -> None:
+    """Collapsible comment thread under a discussion update or a task.
+    key_suffix disambiguates when the same item renders in two places."""
     comments = core.list_comments(parent_type, parent_id)
     with st.expander(f"Comments ({len(comments)})"):
         for c in comments:
@@ -162,7 +163,8 @@ def comment_thread(parent_type: str, parent_id: int, user: dict,
                         f'<span class="meta">· {when}</span>', unsafe_allow_html=True)
             st.write(c["body"])
         if can_comment:
-            with st.form(f"cmt_{parent_type}_{parent_id}", clear_on_submit=True):
+            with st.form(f"cmt_{parent_type}_{parent_id}_{key_suffix}",
+                         clear_on_submit=True):
                 body = st.text_area("Reply", height=68, label_visibility="collapsed",
                                     placeholder="Write a reply…")
                 if st.form_submit_button("Reply"):

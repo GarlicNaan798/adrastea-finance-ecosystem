@@ -3,3 +3,4 @@ pandas>=2.0
 psycopg2-binary>=2.9
 requests>=2.31
 streamlit-cookies-controller>=0.0.4
+streamlit-sortables>=0.3
