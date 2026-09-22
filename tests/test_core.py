@@ -45,6 +45,26 @@ def test_roles():
     assert core.ROLES == ("member", "director", "founder")
 
 
+def test_can_assign_directors():
+    # Monkeypatch _secret so the real secrets.toml can't leak in via st.secrets.
+    orig = core._secret
+    fake = lambda owners: (lambda k, d=None: owners if k == "OWNER_EMAILS" else orig(k, d))
+    core._secret = fake(None)          # no owners set: any founder may assign
+    try:
+        assert core.can_assign_directors("founder", "anyone@x.org") is True
+        assert core.can_assign_directors("director", "anyone@x.org") is False
+        assert core.can_assign_directors("member", "anyone@x.org") is False
+    finally:
+        core._secret = orig
+    core._secret = fake("Aiyana@x.org")  # owners set: only that founder
+    try:
+        assert core.can_assign_directors("founder", "aiyana@x.org") is True
+        assert core.can_assign_directors("founder", "adnan@x.org") is False   # founder, not owner
+        assert core.can_assign_directors("director", "aiyana@x.org") is False  # owner email, not founder
+    finally:
+        core._secret = orig
+
+
 def test_track_director_config():
     orig = core._secret
     core._secret = lambda k, d=None: (
@@ -57,7 +77,11 @@ def test_track_director_config():
             "Bioengineering & Tech": "r@x.org"}       # unknown track + blank dropped
     finally:
         core._secret = orig
-    assert core.track_director_emails() == {}          # no secret set → empty
+    core._secret = lambda k, d=None: None              # secret absent → empty
+    try:
+        assert core.track_director_emails() == {}
+    finally:
+        core._secret = orig
 
 
 def test_tracks():

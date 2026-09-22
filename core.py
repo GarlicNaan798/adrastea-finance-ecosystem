@@ -88,6 +88,11 @@ def founder_emails() -> set[str]:
     return _email_set("FOUNDER_EMAILS")
 
 
+def owner_emails() -> set[str]:
+    """Founders allowed to appoint track directors. Empty = any founder may."""
+    return _email_set("OWNER_EMAILS")
+
+
 def role_for_email(email: str) -> str:
     e = (email or "").strip().lower()
     if e in founder_emails():
@@ -235,11 +240,16 @@ def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
          "ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, "
          "name = COALESCE(EXCLUDED.name, profiles.name)",
          (uid, e, name or email, role))
-    # Self-configure track ownership: claim any track this user directs in config.
+    # Self-configure track ownership: claim any UNOWNED track this user directs in
+    # config. Seed-only (not overwrite), so an owner's in-app reassignment sticks
+    # while a fresh/reset DB still self-heals from config.
     if role in ("director", "founder"):
-        for track, demail in track_director_emails().items():
-            if demail == e:
-                set_track_director(track, uid)
+        cfg = track_director_emails()
+        if cfg:
+            owned_now = track_directors()
+            for track, demail in cfg.items():
+                if demail == e and track not in owned_now:
+                    set_track_director(track, uid)
     return get_profile(uid)
 
 
@@ -304,6 +314,16 @@ def lead_tracks(user_id: str) -> set:
 
 
 # --- Permissions (pure rules; pages compute the booleans once) ---------------
+def can_assign_directors(role: str, email: str) -> bool:
+    """Appoint/replace a track's director. Founders only — and if OWNER_EMAILS is
+    set, only those founders (e.g. just the org founder). Unset → any founder,
+    so a fresh install isn't locked out."""
+    if role != "founder":
+        return False
+    owners = owner_emails()
+    return not owners or (email or "").strip().lower() in owners
+
+
 def can_manage_track(is_founder: bool, is_track_director: bool) -> bool:
     """Create/delete projects, budgets, build the team, assign tasks, set status
     structurally. Founder anywhere; a director only in a track they direct."""

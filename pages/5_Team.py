@@ -10,6 +10,7 @@ user = ui.require_login()
 
 uid, role = user["id"], user["role"]
 is_founder = role == "founder"
+can_assign = core.can_assign_directors(role, user["email"])  # owner (Aiyana) only
 owned = core.owned_tracks(uid)
 if not (is_founder or owned):
     ui.page_header("Team", "Directory")
@@ -21,11 +22,11 @@ people = core.list_profiles()
 people_opts = {f'{u["name"]} · {u["email"]}': u["id"] for u in people}
 directors = core.track_directors()
 
-tabs = (["Track directors"] if is_founder else []) + ["Team by track"]
+tabs = (["Track directors"] if can_assign else []) + ["Team by track"]
 tab_objs = st.tabs(tabs)
 
-# --- Founder: assign track directors ----------------------------------------
-if is_founder:
+# --- Owner: assign track directors ------------------------------------------
+if can_assign:
     with tab_objs[0]:
         st.caption("Assign the director who runs each track. Directors come from "
                    "DIRECTOR_EMAILS; founders can direct a track too.")
