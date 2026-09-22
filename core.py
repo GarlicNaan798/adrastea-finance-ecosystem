@@ -116,7 +116,25 @@ def track_director_emails() -> dict:
 
 
 # --- Postgres (trusted server connection; RLS bypassed by design) -----------
+# The DB is a remote pooler (~1s+ per round-trip), so reads are cached briefly and
+# reruns reuse them; every write clears the cache so a user sees their own change.
 _pg = None
+
+
+def _bust() -> None:
+    try:
+        import streamlit as st
+        st.cache_data.clear()
+    except Exception:
+        pass
+
+
+try:
+    import streamlit as _st
+    _cache = _st.cache_data(ttl=20, show_spinner=False)
+except Exception:                         # offline (tests) — caching is a no-op
+    def _cache(fn):
+        return fn
 
 
 def _conn():
@@ -126,6 +144,7 @@ def _conn():
         if not dsn:
             raise RuntimeError("DATABASE_URL is not set (see secrets.toml).")
         _pg = psycopg2.connect(dsn)
+        _pg.autocommit = True             # one round-trip per statement (no COMMIT RTT)
     return _pg
 
 
@@ -139,7 +158,8 @@ def _run(sql: str, args=(), fetch: str | None = None):
                 cur.execute(sql, args)
                 row = (cur.fetchone() if fetch == "one"
                        else cur.fetchall() if fetch == "all" else None)
-            conn.commit()
+            if sql.lstrip()[:6].upper() in ("INSERT", "UPDATE", "DELETE"):
+                _bust()                   # a write happened — drop stale read caches
             return row
         except (psycopg2.OperationalError, psycopg2.InterfaceError):
             try:
@@ -151,12 +171,15 @@ def _run(sql: str, args=(), fetch: str | None = None):
                 raise
 
 
+@_cache
 def _q(sql, args=()):
-    return _run(sql, args, "all")
+    return [dict(r) for r in (_run(sql, args, "all") or [])]
 
 
+@_cache
 def _one(sql, args=()):
-    return _run(sql, args, "one")
+    r = _run(sql, args, "one")
+    return dict(r) if r else None
 
 
 def _insert(sql, args=()) -> int:
@@ -383,7 +406,7 @@ def list_projects(status: str | None = None, track: str | None = None,
         sql += " AND p.status = %s"; args.append(status)
     if track:
         sql += " AND p.track = %s"; args.append(track)
-    return _q(sql + " ORDER BY (p.status='complete'), p.track, p.name", args)
+    return _q(sql + " ORDER BY (p.status='complete'), p.track, p.name", tuple(args))
 
 
 def list_archived_projects():
@@ -466,7 +489,7 @@ def list_progress(project_id: int | None = None, limit: int | None = None):
     sql += " ORDER BY g.created_at DESC, g.id DESC"
     if limit:
         sql += " LIMIT %s"; args.append(limit)
-    return _q(sql, args)
+    return _q(sql, tuple(args))
 
 
 def latest_progress_by_project():
@@ -496,7 +519,8 @@ def list_tasks(project_id: int | None = None, assignee_id: str | None = None):
         sql += " AND t.project_id = %s"; args.append(project_id)
     if assignee_id:
         sql += " AND t.assignee_id = %s"; args.append(assignee_id)
-    return _q(sql + " ORDER BY (t.status='done'), t.due_date NULLS LAST, t.id DESC", args)
+    return _q(sql + " ORDER BY (t.status='done'), t.due_date NULLS LAST, t.id DESC",
+              tuple(args))
 
 
 def set_task_status(task_id: int, status: str) -> None:
