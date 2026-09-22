@@ -207,7 +207,7 @@ def _tasks(user, proj, can_assign):
             st.caption("No team on this track yet — add members on the Team page.")
 
     tlist = core.list_tasks(project_id=pid)
-    if tlist and _HAS_BOARD:
+    if tlist and _HAS_BOARD and can_assign:
         by_id = {t["id"]: t for t in tlist}
         cols = {h: [f'#{t["id"]} {t["title"]}' for t in tlist if t["status"] == s]
                 for h, s in _BOARD.items()}
@@ -235,6 +235,7 @@ def _tasks(user, proj, can_assign):
         st.caption("No tasks yet.")
 
     for t in tlist:
+        can_e = can_assign or t["assignee_id"] == uid   # its assignee, or a manager/lead
         c1, c2, c3 = st.columns([3, 1.5, 1])
         c1.markdown(f'**{t["title"]}** <span class="meta">· '
                     f'{t["assignee_name"] or "unassigned"} · due {t["due_date"] or "—"}'
@@ -242,11 +243,11 @@ def _tasks(user, proj, can_assign):
         ns = c2.selectbox("Status", list(core.TASK_STATUSES),
                           index=list(core.TASK_STATUSES).index(t["status"]),
                           format_func=lambda s: core.TASK_LABELS[s],
-                          key=f"tst_{t['id']}", label_visibility="collapsed")
-        if ns != t["status"]:
+                          key=f"tst_{t['id']}", label_visibility="collapsed",
+                          disabled=not can_e)
+        if can_e and ns != t["status"]:
             core.set_task_status(t["id"], ns)
             st.rerun()
-        can_e = can_assign or t["assignee_id"] == uid
         if can_assign and c3.button("Archive", key=f"arc_{t['id']}", width='stretch'):
             core.archive_task(t["id"])
             st.rerun()
