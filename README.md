@@ -52,24 +52,26 @@ cd adrastea-finance-ecosystem
 
 ## How it works
 
-```
-director  ──>  Project (description, requirements, budget breakdown)
-                   │
-member/director ──>  weekly progress update (status + note)  ──>  Timeline
-                   │
-                Overview: active projects · updated this week · needs attention
-```
+You navigate **by project**. Open a project and everything about it is in one
+place — its **Stream** (updates + comment threads), **Tasks** (a drag board +
+assignments), **Deadlines**, **Docs**, **Budget** and **About** — instead of being
+spread across global pages. Dated items (project milestones + task due dates) roll
+up into the **Calendar** and your **Home** dashboard.
 
 ## Layout
 
-- `app.py` — overview (projects at a glance + recent progress)
-- `pages/1_Projects.py` — browse projects; directors create/edit/budget; specialists & leads edit details; attach document links (Google Drive / Docs)
-- `pages/2_Progress.py` — post a weekly update; team timeline
-- `pages/3_Account.py` — your role + change password
-- `pages/4_Team.py` — directors promote members ↔ specialists
-- `migrations/` — additive SQL migrations for an already-populated database
-- `core.py` — Postgres data access, GoTrue auth, director allowlist
-- `schema.sql` — Supabase Postgres schema (run once)
+After sign-in the pages appear as a **top navbar** (`st.navigation`, position
+`top`); the landing is a login-only screen (no nav until you're in).
+
+- `app.py` — auth gate + top navbar (Home · Projects · Calendar · Team · Account)
+- `views/home.py` — dashboard: my tasks, upcoming deadlines, my projects, activity
+- `views/projects.py` — project list + a per-project **workspace** with tabs (Stream · Tasks · Deadlines · Docs · Budget · About)
+- `views/calendar.py` — agenda of all upcoming milestones + task due dates
+- `views/team.py` — assign track directors (owner only) + build each track's team
+- `views/account.py` — your role + change password
+- `ui.py` — brand, styling, login screen, session/cookie auth
+- `core.py` — Postgres data access, GoTrue auth, role/track allowlists
+- `schema.sql` — Supabase Postgres schema (run once); `migrations/` — additive SQL
 - `tests/test_core.py` — offline checks; `tests/smoke_live.py` — live end-to-end
 
 ## Sessions

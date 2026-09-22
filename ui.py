@@ -175,7 +175,8 @@ def comment_thread(parent_type: str, parent_id: int, user: dict,
             st.caption("No comments yet.")
 
 
-def _auth_screen(ck) -> None:
+def login_screen(ck) -> None:
+    """The landing: a clean, centered Adrastea login (no nav tabs until signed in)."""
     _, mid, _ = st.columns([1, 1.35, 1])
     with mid:
         st.markdown(
@@ -219,25 +220,15 @@ def _auth_screen(ck) -> None:
                         (st.success if ok else st.error)(msg)
 
 
-def require_login() -> dict:
-    """Render auth if needed; return the current user."""
-    apply_style()
+def auth():
+    """Return (user_or_None, cookie_controller). No rendering — the caller shows
+    login_screen() when user is None, else registers the navbar."""
     ck = _cookies()
     user = st.session_state.get("user") or _restore_session(ck)
-    if not user:
-        _auth_screen(ck)
-        st.stop()
-    _sidebar(ck, user)
-    return user
+    return user, ck
 
 
-def require_role(user: dict, *roles: str) -> None:
-    if user["role"] not in roles:
-        st.error("You don't have access to this page.")
-        st.stop()
-
-
-def _sidebar(ck, user: dict) -> None:
+def sidebar(ck, user: dict) -> None:
     with st.sidebar:
         st.markdown(
             f'<div class="brandbar">{mark(30)}<span class="name">Adrastea</span></div>',
