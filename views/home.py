@@ -36,10 +36,11 @@ def home():
             if not my_tasks:
                 st.caption("Nothing assigned to you.")
             for t in my_tasks[:8]:
-                st.markdown(
-                    f'{core.TASK_LABELS.get(t["status"], t["status"])} · **{t["title"]}** '
-                    f'<span class="meta">· {t["project_name"]} · due {t["due_date"] or "—"}'
-                    f'</span>', unsafe_allow_html=True)
+                if st.button(
+                    f'{core.TASK_LABELS.get(t["status"], t["status"])} · **{t["title"]}**'
+                    f' · {t["project_name"]} · due {t["due_date"] or "—"}',
+                        key=f"nav_mt_{t['id']}", width='stretch'):
+                    _open(t["project_id"])
     with col2:
         with st.container(border=True):
             st.subheader("Upcoming deadlines")
@@ -47,9 +48,9 @@ def home():
             if not ums:
                 st.caption("No upcoming deadlines.")
             for m in ums[:8]:
-                st.markdown(f'**{m["due_date"]}** · {m["title"]} '
-                            f'<span class="meta">· {m["project_name"]}</span>',
-                            unsafe_allow_html=True)
+                if st.button(f'**{m["due_date"]}** · {m["title"]} · {m["project_name"]}',
+                             key=f"nav_md_{m['id']}", width='stretch'):
+                    _open(m["project_id"])
 
     mine = [p for p in projects if p["director_id"] == uid
             or p["track"] in owned or p["track"] in led]
@@ -57,13 +58,10 @@ def home():
         with st.container(border=True):
             st.subheader("My projects")
             for p in mine:
-                a, b = st.columns([5, 1])
                 lp = latest.get(p["id"])
-                a.markdown(
-                    f'**{p["name"]}** <span class="meta">· {p["track"]} · '
-                    f'{(lp["title"] or core.PROGRESS_LABELS.get(lp["status"])) if lp else "no updates"}'
-                    f'</span>', unsafe_allow_html=True)
-                if b.button("Open", key=f"home_open_{p['id']}", width='stretch'):
+                sub = (lp["title"] or core.PROGRESS_LABELS.get(lp["status"])) if lp else "no updates"
+                if st.button(f'**{p["name"]}** · {p["track"]} · {sub}',
+                             key=f"nav_home_{p['id']}", width='stretch'):
                     _open(p["id"])
 
     with st.container(border=True):
@@ -71,9 +69,12 @@ def home():
         feed = core.list_progress(limit=8)
         if not feed:
             st.caption("No updates yet.")
+        _sc = {"on_track": "green", "at_risk": "orange", "blocked": "red", "done": "blue"}
         for g in feed:
             when = g["created_at"][:16].replace("T", " ")
-            st.markdown(
-                f'{ui.status_pill(g["status"])} &nbsp;**{g["title"] or g["project_name"]}** '
-                f'<span class="meta">· {g["project_name"]} · {when} · '
-                f'{g["author_name"] or "—"}</span>', unsafe_allow_html=True)
+            if st.button(
+                f':{_sc.get(g["status"], "gray")}'
+                f'[{core.PROGRESS_LABELS.get(g["status"], g["status"])}]'
+                f' · **{g["title"] or g["project_name"]}** · {g["project_name"]} · {when}',
+                    key=f"nav_act_{g['id']}", width='stretch'):
+                _open(g["project_id"])

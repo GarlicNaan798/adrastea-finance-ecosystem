@@ -80,7 +80,8 @@ _STYLE = """
           --adr-hair:rgba(255,255,255,.12); }
 }
 
-.block-container { max-width: 1180px; padding-top: 2.4rem; padding-bottom: 4rem; }
+.block-container { max-width: 1500px; padding-top: 1.4rem; padding-bottom: 3rem;
+  padding-left: 2.2rem; padding-right: 2.2rem; }
 
 /* Hide Streamlit chrome for a cleaner, app-like surface */
 #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"],
@@ -117,6 +118,25 @@ select:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible,
 [data-baseweb="tab"]:focus-visible, summary:focus-visible {
   outline: 2px solid var(--adr-accent); outline-offset: 2px; border-radius: 4px;
 }
+
+/* Row-style navigation buttons (keys start "nav_"): the WHOLE row is the click
+   target — flat, left-aligned, hover highlight, like list rows. Scoped so real
+   action buttons (Save/Create/…) keep their normal look. */
+[class*="st-key-nav_"] button {
+  justify-content: flex-start !important;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--adr-hair);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+  padding: .55rem .55rem;
+}
+[class*="st-key-nav_"] button:hover {
+  background: color-mix(in srgb, var(--adr-accent) 8%, transparent);
+}
+[class*="st-key-nav_"] button p { font-size: .95rem; }
 
 /* Dark mode uses a light clay primary, so give primary buttons dark label text
    (white-on-clay fails WCAG AA; dark-on-clay passes at 6:1). */

@@ -57,11 +57,9 @@ def _list(user):
             st.markdown(f"#### {track}")
             st.caption(f'Director: {directors.get(track, {}).get("name") or "—"}')
             for p in [p for p in projects if p["track"] == track]:
-                a, b = st.columns([5, 1])
-                a.markdown(f'**{p["name"]}** <span class="meta">· '
-                           f'{p["status"].replace("_", " ").title()}</span>',
-                           unsafe_allow_html=True)
-                if b.button("Open", key=f"open_{p['id']}", width='stretch'):
+                if st.button(f'**{p["name"]}**  ·  '
+                             f'{p["status"].replace("_", " ").title()}',
+                             key=f"nav_open_{p['id']}", width='stretch'):
                     st.session_state.open_project = p["id"]
                     st.rerun()
 
