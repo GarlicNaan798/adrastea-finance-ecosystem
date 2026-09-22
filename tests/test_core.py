@@ -45,6 +45,21 @@ def test_roles():
     assert core.ROLES == ("member", "director", "founder")
 
 
+def test_track_director_config():
+    orig = core._secret
+    core._secret = lambda k, d=None: (
+        {"Media & Marketing": "Laine@x.org", "Bioengineering & Tech": "R@x.org",
+         "Made Up Track": "z@x.org", "CHASM Project": "  "}
+        if k == "TRACK_DIRECTORS" else orig(k, d))
+    try:
+        assert core.track_director_emails() == {
+            "Media & Marketing": "laine@x.org",       # lower-cased
+            "Bioengineering & Tech": "r@x.org"}       # unknown track + blank dropped
+    finally:
+        core._secret = orig
+    assert core.track_director_emails() == {}          # no secret set → empty
+
+
 def test_tracks():
     assert "CHASM Project" in core.TRACKS
     assert len(core.TRACKS) == 5

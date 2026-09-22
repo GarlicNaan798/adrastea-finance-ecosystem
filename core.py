@@ -97,6 +97,19 @@ def role_for_email(email: str) -> str:
     return "member"
 
 
+def track_director_emails() -> dict:
+    """{track: email} from the TRACK_DIRECTORS secret (a TOML table), so a track's
+    director self-configures on their login instead of a founder assigning by hand.
+    Unknown tracks and blank emails are dropped; emails are lower-cased."""
+    raw = _secret("TRACK_DIRECTORS")
+    try:
+        items = list(raw.items())
+    except AttributeError:
+        return {}
+    return {t: str(e).strip().lower() for t, e in items
+            if t in TRACKS and e and str(e).strip()}
+
+
 # --- Postgres (trusted server connection; RLS bypassed by design) -----------
 _pg = None
 
@@ -216,11 +229,17 @@ def get_profile(uid: str):
 def sync_profile(uid: str, email: str, name: str | None = None) -> dict:
     """Ensure a profile row exists; reconcile role from the allowlists on login
     (founder > director > member). Editing the allowlists takes effect next login."""
-    role = role_for_email(email)
+    e = (email or "").lower()
+    role = role_for_email(e)
     _run("INSERT INTO profiles (id, email, name, role) VALUES (%s,%s,%s,%s) "
          "ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, "
          "name = COALESCE(EXCLUDED.name, profiles.name)",
-         (uid, (email or "").lower(), name or email, role))
+         (uid, e, name or email, role))
+    # Self-configure track ownership: claim any track this user directs in config.
+    if role in ("director", "founder"):
+        for track, demail in track_director_emails().items():
+            if demail == e:
+                set_track_director(track, uid)
     return get_profile(uid)
 
 
