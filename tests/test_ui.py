@@ -12,6 +12,7 @@ def test_date_helpers():
     assert "in 6d" in ui.due(iso(6)) and "late" not in ui.due(iso(6))
     assert "3d late" in ui.due(iso(-3)) and 'class="late"' in ui.due(iso(-3))
     assert 'class="late"' not in ui.due(iso(-3), done=True)
+    assert "late" not in ui.due(iso(-3), done=True)
     assert "no date" in ui.due(None)
     assert ui.when(f"{t.isoformat()}T10:12:00+00:00") == "10:12"
 

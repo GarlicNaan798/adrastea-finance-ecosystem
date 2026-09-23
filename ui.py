@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import date
 from html import escape
+from urllib.parse import urlparse
 
 import streamlit as st
 from streamlit_cookies_controller import CookieController
@@ -200,6 +201,41 @@ h4 { font-weight: 500 !important; }
   white-space: nowrap; }
 .adr-tag.doing { color: var(--adr-ink); border-color: var(--adr-rule); }
 
+/* Workspace: flat item rows (tasks, milestones, docs, update log) */
+[class*="st-key-task_"], [class*="st-key-msrow_"], [class*="st-key-doc_"],
+[class*="st-key-log_"] { border-top: 1px solid var(--adr-hair); padding: .55rem 1px .35rem; }
+[class*="st-key-task_"] [data-testid="stExpander"] details,
+[class*="st-key-log_"] [data-testid="stExpander"] details { border: 0; background: transparent; }
+[class*="st-key-task_"] [data-testid="stExpander"] summary,
+[class*="st-key-log_"] [data-testid="stExpander"] summary { padding: .2rem 0; min-height: 0; }
+[class*="st-key-task_"] summary p, [class*="st-key-log_"] summary p {
+  font-size: .78rem; color: var(--adr-muted); }
+[class*="st-key-log_"] [data-testid="stExpander"] { margin-left: 6.4rem; }
+@media (max-width: 640px) { [class*="st-key-log_"] [data-testid="stExpander"] { margin-left: 0; } }
+.adr-item { padding-bottom: .9rem; }
+.adr-item .t { font-weight: 500; }
+.adr-item .s, .adr-item-due { font-size: .8rem; color: var(--adr-muted); }
+.adr-item-due .due-r { display: inline; margin-left: .35rem; }
+
+.adr-log { display: flex; gap: 1rem; padding-bottom: 1.1rem; }
+.adr-log .when { flex: none; width: 5.4rem; font-size: .82rem; color: var(--adr-ink);
+  font-weight: 500; padding-top: .1rem; }
+.adr-log .when span { display: block; color: var(--adr-muted); font-weight: 400; font-size: .75rem; }
+.adr-log .body { flex: 1; min-width: 0; }
+.adr-log .head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.adr-log .head b { font-weight: 600; }
+.adr-log .note { margin-top: .35rem; white-space: pre-wrap; line-height: 1.55; }
+.adr-log .by { margin-top: .3rem; font-size: .78rem; color: var(--adr-muted); }
+
+.adr-doc { display: flex; align-items: baseline; gap: .8rem; text-decoration: none !important;
+  color: var(--adr-ink) !important; }
+.adr-doc .t { font-weight: 500; }
+.adr-doc .s { font-size: .8rem; color: var(--adr-muted); }
+.adr-doc:hover .t { color: var(--adr-accent); text-decoration: underline;
+  text-underline-offset: 3px; }
+.adr-doc .arrow { color: var(--adr-muted); transition: transform .22s var(--adr-ease); }
+.adr-doc:hover .arrow { transform: translate(2px, -2px); color: var(--adr-accent); }
+
 /* Sidebar: brand + who-you-are on top, nav below, hairline edge */
 [data-testid="stSidebar"] { border-right: 1px solid var(--adr-hair); }
 [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
@@ -291,7 +327,8 @@ def due(iso, done: bool = False) -> str:
     if not d:
         return '<span class="due-r">no date</span>'
     n = (d - date.today()).days
-    rel = "today" if n == 0 else "tomorrow" if n == 1 else f"in {n}d" if n > 0 else f"{-n}d late"
+    rel = ("" if done else "today" if n == 0 else "tomorrow" if n == 1
+           else f"in {n}d" if n > 0 else f"{-n}d late")
     late = n < 0 and not done
     return (f'<span class="{"late" if late else ""}"><span class="due-d">{fmt_date(d)}'
             f'</span><span class="due-r">{rel}</span></span>')
@@ -301,6 +338,62 @@ def when(ts: str) -> str:
     """Timestamp → '10:12' today, else '21 Sep'."""
     d = as_date(ts)
     return ts[11:16] if d == date.today() else fmt_date(d)
+
+
+
+# Chart clay: mid-tone that holds >=3:1 (graphics) on both paper and dark ground.
+CLAY = "#9E6B4B"
+
+# streamlit-sortables renders in its own iframe; this restyles the Kanban board.
+BOARD_CSS = """
+.sortable-component { display: flex; flex-direction: row; align-items: stretch;
+  background: transparent; border: 0; padding: 0; gap: .8rem; }
+.sortable-container { flex: 1; min-width: 0; margin: 0; background: rgba(35,33,28,.035);
+  border: 1px solid rgba(35,33,28,.10); border-radius: 4px; padding: .4rem; }
+.sortable-container-header { background: transparent; font: 600 .7rem Inter, system-ui,
+  sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #635D53;
+  padding: .35rem .4rem .5rem; }
+.sortable-container-body { display: flex; flex-direction: column; background: transparent;
+  min-height: 3rem; }
+.sortable-item, .sortable-item:hover { background: #FBFAF7; color: #23211C;
+  border: 1px solid rgba(35,33,28,.12); border-radius: 3px; font: 500 .85rem Inter,
+  system-ui, sans-serif; padding: .5rem .6rem; margin: 0 0 .35rem; box-shadow: none;
+  text-align: left; justify-content: flex-start; }
+.sortable-item:hover { border-color: #7E4F33; }
+@media (prefers-color-scheme: dark) {
+  .sortable-container { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.10); }
+  .sortable-container-header { color: #A79E90; background: transparent; }
+  .sortable-item, .sortable-item:hover { background: #24201B; color: #ECE7DD;
+    border-color: rgba(255,255,255,.12); }
+  .sortable-item:hover { border-color: #C08A63; }
+}
+"""
+
+
+def _safe_url(url: str) -> str:
+    return url if str(url).lower().startswith(("http://", "https://")) else "#"
+
+
+def link(label: str, url: str) -> str:
+    return (f'<a href="{escape(_safe_url(url))}" target="_blank" rel="noopener">'
+            f'{escape(label or url)}</a>')
+
+
+def doc_row(label: str, url: str) -> str:
+    host = urlparse(url).netloc.removeprefix("www.") or url
+    return (f'<a class="adr-doc" href="{escape(_safe_url(url))}" target="_blank" '
+            f'rel="noopener"><span class="t">{escape(label or host)}</span>'
+            + (f'<span class="s">{escape(host)}</span>' if label else "")
+            + '<span class="arrow">↗</span></a>')
+
+
+def log_entry(ts: str, pill: str, title: str, note: str, author: str) -> str:
+    """One dated entry in a project's update log (lab-notebook style)."""
+    return (f'<div class="adr-log"><div class="when">{fmt_date(ts)}'
+            f'<span>{escape(ts[11:16])}</span></div><div class="body">'
+            f'<div class="head">{pill}<b>{escape(title)}</b></div>'
+            + (f'<div class="note">{escape(note)}</div>' if note else "")
+            + f'<div class="by">{escape(author)}</div></div></div>')
 
 
 def readout(cells: list[tuple[str, int | str, bool]]) -> None:
