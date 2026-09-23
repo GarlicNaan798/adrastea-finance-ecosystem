@@ -60,10 +60,10 @@ up into the **Calendar** and your **Home** dashboard.
 
 ## Layout
 
-After sign-in the pages appear as a **top navbar** (`st.navigation`, position
-`top`); the landing is a login-only screen (no nav until you're in).
+After sign-in the pages appear as a **collapsible left navbar** (`st.navigation`,
+position `sidebar`); the landing is a login-only screen (no nav until you're in).
 
-- `app.py` — auth gate + top navbar (Home · Projects · Calendar · Team · Account)
+- `app.py` — auth gate + left navbar (Home · Projects · Calendar · Team · Account)
 - `views/home.py` — dashboard: my tasks, upcoming deadlines, my projects, activity
 - `views/projects.py` — project list + a per-project **workspace** with tabs (Stream · Tasks · Deadlines · Docs · Budget · About)
 - `views/calendar.py` — agenda of all upcoming milestones + task due dates

@@ -1,7 +1,8 @@
 """Adrastea — team project tracking.
 
-Landing is a login-only screen; after sign-in the pages appear as a top navbar
-(st.navigation, position="top"). Run: streamlit run app.py
+Landing is a login-only screen; after sign-in the pages appear as a collapsible
+left navbar (st.navigation, position="sidebar" — "top" isn't rendered by this
+Streamlit build). Run: streamlit run app.py
 """
 import streamlit as st
 
@@ -34,7 +35,7 @@ if user["role"] == "founder" or core.owned_tracks(user["id"]):
 nav.append(pages["account"])
 st.session_state["_pages"] = pages
 
-selected = st.navigation(nav, position="top")
+selected = st.navigation(nav, position="sidebar")
 # Leaving Projects drops the open project, so returning shows the list (not a stale
 # workspace).
 if getattr(selected, "url_path", "") != "projects":
