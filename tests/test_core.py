@@ -45,6 +45,20 @@ def test_roles():
     assert core.ROLES == ("member", "director", "founder")
 
 
+def test_missing_config():
+    orig = core._secret
+    core._secret = lambda k, d=None: "x" if k in core.REQUIRED_SECRETS else orig(k, d)
+    try:
+        assert core.missing_config() == []          # all present
+    finally:
+        core._secret = orig
+    core._secret = lambda k, d=None: None            # none present
+    try:
+        assert set(core.missing_config()) == set(core.REQUIRED_SECRETS)
+    finally:
+        core._secret = orig
+
+
 def test_can_assign_directors():
     # Monkeypatch _secret so the real secrets.toml can't leak in via st.secrets.
     orig = core._secret

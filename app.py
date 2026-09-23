@@ -13,6 +13,17 @@ import views
 st.set_page_config(page_title="Adrastea", page_icon="🌘", layout="wide")
 ui.apply_style()
 
+missing = core.missing_config()
+if missing:
+    st.error(
+        "This app isn't fully configured. Missing secret(s): **"
+        + ", ".join(missing) + "**.\n\n"
+        "Add them under **Manage app → Settings → Secrets** (Streamlit Cloud) or in "
+        "`.streamlit/secrets.toml` locally. Every `KEY = \"...\"` line must sit "
+        "**above** the `[TRACK_DIRECTORS]` table — a TOML table captures every line "
+        "after it, which hides keys placed below it.")
+    st.stop()
+
 user, ck = ui.auth()
 if not user:                     # landing = just the Adrastea login, no nav
     ui.login_screen(ck)

@@ -93,6 +93,16 @@ def owner_emails() -> set[str]:
     return _email_set("OWNER_EMAILS")
 
 
+REQUIRED_SECRETS = ("SUPABASE_URL", "SUPABASE_ANON_KEY", "DATABASE_URL")
+
+
+def missing_config() -> list[str]:
+    """Required secrets that are absent/blank — so the app can show a clear message
+    instead of a redacted crash when secrets aren't set (common cause: a plain key
+    ended up under a [table] in the secrets file, so TOML swallowed it)."""
+    return [k for k in REQUIRED_SECRETS if not _secret(k)]
+
+
 def role_for_email(email: str) -> str:
     e = (email or "").strip().lower()
     if e in founder_emails():
@@ -188,7 +198,10 @@ def _insert(sql, args=()) -> int:
 
 # --- Auth via GoTrue REST (no SDK needed for these endpoints) ----------------
 def _auth_url(path: str) -> str:
-    return f"{_secret('SUPABASE_URL').rstrip('/')}/auth/v1/{path}"
+    base = _secret("SUPABASE_URL")
+    if not base:
+        raise RuntimeError("SUPABASE_URL is not set (check your secrets).")
+    return f"{base.rstrip('/')}/auth/v1/{path}"
 
 
 def _auth_headers(token: str | None = None) -> dict:
