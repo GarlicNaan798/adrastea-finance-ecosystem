@@ -113,9 +113,9 @@ def _workspace(user, proj):
     st.caption(f'{proj["status"].replace("_", " ").title()} · '
                f'Director: {directors.get(track, {}).get("name") or "—"} · Leads: {leads}')
 
-    stream, tasks, deadlines, docs, budget, about = st.tabs(
-        ["Stream", "Tasks", "Deadlines", "Docs", "Budget", "About"])
-    with stream:
+    updates, tasks, deadlines, docs, budget, about = st.tabs(
+        ["Updates", "Tasks", "Deadlines", "Docs", "Budget", "About"])
+    with updates:
         _stream(user, proj, can_post)
     with tasks:
         _tasks(user, proj, can_edit)
@@ -147,6 +147,8 @@ def _stream(user, proj, can_post):
     else:
         st.caption("Ask to join this track's team to post updates.")
     feed = core.list_progress(project_id=pid, limit=200)
+    st.markdown(f"#### Update history ({len(feed)})")
+    st.caption("Every update on this project, newest first — visible to everyone.")
     if not feed:
         st.caption("No updates yet.")
     for g in feed:
