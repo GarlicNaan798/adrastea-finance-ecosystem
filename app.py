@@ -35,11 +35,12 @@ ui.sidebar(ck, user)
 pages = {
     "home": st.Page(views.home, title="Home", icon="🏠", url_path="home", default=True),
     "projects": st.Page(views.projects, title="Projects", icon="📁", url_path="projects"),
+    "history": st.Page(views.history, title="History", icon="🕘", url_path="history"),
     "calendar": st.Page(views.calendar_view, title="Calendar", icon="🗓️",
                         url_path="calendar"),
     "account": st.Page(views.account, title="Account", icon="⚙️", url_path="account"),
 }
-nav = [pages["home"], pages["projects"], pages["calendar"]]
+nav = [pages["home"], pages["projects"], pages["history"], pages["calendar"]]
 if user["role"] == "founder" or core.owned_tracks(user["id"]):
     pages["team"] = st.Page(views.team, title="Team", icon="👥", url_path="team")
     nav.append(pages["team"])
