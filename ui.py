@@ -32,14 +32,28 @@ def _save_session(ck, sess: dict) -> None:
             pass
 
 
+def _cookie_value(ck):
+    """Read our cookie. st.context.cookies is synchronous (from the request
+    headers) so it's there on the very FIRST run after a refresh / new tab — the
+    cookie *component* (ck.get) returns nothing until it mounts, which is what made
+    the app sign you out on every refresh. Component is only a fallback here."""
+    try:
+        rt = st.context.cookies.get(_COOKIE)
+        if rt:
+            return rt
+    except Exception:
+        pass
+    if ck is not None:
+        try:
+            return ck.get(_COOKIE)
+        except Exception:
+            pass
+    return None
+
+
 def _restore_session(ck) -> dict | None:
     """Rebuild the user from the refresh-token cookie, if present and valid."""
-    if ck is None:
-        return None
-    try:
-        rt = ck.get(_COOKIE)
-    except Exception:
-        return None
+    rt = _cookie_value(ck)
     if not rt:
         return None
     sess = core.refresh_session(rt)  # needs live Supabase; None if unreachable
