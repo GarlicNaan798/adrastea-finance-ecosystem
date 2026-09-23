@@ -1,80 +1,74 @@
 """Home dashboard: what's mine and what's next (ManageBac-style landing)."""
+from datetime import date, timedelta
+from html import escape
+
 import streamlit as st
 
 import core
 import ui
 
 
-def _open(pid):
-    st.session_state.open_project = pid
-    st.switch_page(st.session_state["_pages"]["projects"])
-
-
 def home():
     user = st.session_state.user
     uid, role = user["id"], user["role"]
-    ui.page_header(f"Welcome back, {user['name'].split()[0]}", "Home")
-    st.caption(f"Signed in as a **{core.ROLE_LABELS.get(role, role)}**.")
+    today = date.today()
+    ui.page_header(f"Welcome back, {user['name'].split()[0]}", "Home",
+                   f"{today:%A}, {today.day} {today:%B} · {core.ROLE_LABELS.get(role, role)}")
 
     projects = core.list_projects()
     latest = {r["project_id"]: r for r in core.latest_progress_by_project()}
     owned, led = core.owned_tracks(uid), core.lead_tracks(uid)
     my_tasks = [t for t in core.list_tasks(assignee_id=uid) if t["status"] != "done"]
+    ums = core.upcoming_milestones()
     active = [p for p in projects if p["status"] == "active"]
     attention = [p for p in projects
                  if latest.get(p["id"], {}).get("status") in ("at_risk", "blocked")]
+    week = (today + timedelta(days=7)).isoformat()
+    due_soon = [t for t in my_tasks if t["due_date"] and t["due_date"][:10] <= week]
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Active projects", len(active))
-    c2.metric("My open tasks", len(my_tasks))
-    c3.metric("Needs attention", len(attention))
+    ui.readout([("Active projects", len(active), False),
+                ("My open tasks", len(my_tasks), False),
+                ("Due within 7 days", len(due_soon), False),
+                ("Needs attention", len(attention), bool(attention))])
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="large")
     with col1:
-        with st.container(border=True):
-            st.subheader("My tasks")
-            if not my_tasks:
-                st.caption("Nothing assigned to you.")
-            for t in my_tasks[:8]:
-                if st.button(
-                    f'{core.TASK_LABELS.get(t["status"], t["status"])} · **{t["title"]}**'
-                    f' · {t["project_name"]} · due {t["due_date"] or "—"}',
-                        key=f"nav_mt_{t['id']}", width='stretch'):
-                    _open(t["project_id"])
+        ui.section("My tasks", len(my_tasks))
+        if not my_tasks:
+            ui.empty("Nothing assigned to you.")
+        for t in my_tasks[:8]:
+            if ui.row(f"mt_{t['id']}", t["title"], t["project_name"],
+                      lead=ui.task_tag(t["status"]), aside=ui.due(t["due_date"])):
+                ui.open_project(t["project_id"])
     with col2:
-        with st.container(border=True):
-            st.subheader("Upcoming deadlines")
-            ums = core.upcoming_milestones()
-            if not ums:
-                st.caption("No upcoming deadlines.")
-            for m in ums[:8]:
-                if st.button(f'**{m["due_date"]}** · {m["title"]} · {m["project_name"]}',
-                             key=f"nav_md_{m['id']}", width='stretch'):
-                    _open(m["project_id"])
+        ui.section("Upcoming deadlines", len(ums))
+        if not ums:
+            ui.empty("No upcoming deadlines.")
+        for m in ums[:8]:
+            if ui.row(f"md_{m['id']}", m["title"], m["project_name"],
+                      lead=ui.due(m["due_date"])):
+                ui.open_project(m["project_id"])
 
+    st.write("")
     mine = [p for p in projects if p["director_id"] == uid
             or p["track"] in owned or p["track"] in led]
     if mine:
-        with st.container(border=True):
-            st.subheader("My projects")
-            for p in mine:
-                lp = latest.get(p["id"])
-                sub = (lp["title"] or core.PROGRESS_LABELS.get(lp["status"])) if lp else "no updates"
-                if st.button(f'**{p["name"]}** · {p["track"]} · {sub}',
-                             key=f"nav_home_{p['id']}", width='stretch'):
-                    _open(p["id"])
+        ui.section("My projects", len(mine))
+        for p in mine:
+            lp = latest.get(p["id"])
+            if ui.row(f"home_{p['id']}", p["name"], p["track"],
+                      aside=(f'<span class="wide-only">{escape(lp["title"] or "")} &nbsp;</span>'
+                             f'{ui.status_pill(lp["status"])}'
+                             if lp else "No updates yet")):
+                ui.open_project(p["id"])
+        st.write("")
 
-    with st.container(border=True):
-        st.subheader("Recent activity")
-        feed = core.list_progress(limit=8)
-        if not feed:
-            st.caption("No updates yet.")
-        _sc = {"on_track": "green", "at_risk": "orange", "blocked": "red", "done": "blue"}
-        for g in feed:
-            when = g["created_at"][:16].replace("T", " ")
-            if st.button(
-                f':{_sc.get(g["status"], "gray")}'
-                f'[{core.PROGRESS_LABELS.get(g["status"], g["status"])}]'
-                f' · **{g["title"] or g["project_name"]}** · {g["project_name"]} · {when}',
-                    key=f"nav_act_{g['id']}", width='stretch'):
-                _open(g["project_id"])
+    feed = core.list_progress(limit=8)
+    ui.section("Recent activity")
+    if not feed:
+        ui.empty("No updates yet.")
+    for g in feed:
+        if ui.row(f"act_{g['id']}", g["title"] or g["project_name"],
+                  f'{g["project_name"]} · {g["author_name"] or "—"}',
+                  lead=ui.status_pill(g["status"]), aside=ui.when(g["created_at"])):
+            ui.open_project(g["project_id"])

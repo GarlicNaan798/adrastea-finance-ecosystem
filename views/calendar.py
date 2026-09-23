@@ -10,18 +10,22 @@ import ui
 
 def calendar_view():
     ui.page_header("Calendar", "Deadlines")
-    rows = [(m["due_date"], "Milestone", m["title"], m["project_name"], m["track"])
-            for m in core.upcoming_milestones(limit=200)]
-    rows += [(t["due_date"], "Task", t["title"], t["project_name"], t["track"])
+    rows = [(m["due_date"], "Milestone", m["title"], m["project_name"], m["track"],
+             m["project_id"], f"m{m['id']}") for m in core.upcoming_milestones(limit=200)]
+    rows += [(t["due_date"], "Task", t["title"], t["project_name"], t["track"],
+              t["project_id"], f"t{t['id']}")
              for t in core.list_tasks()
              if t["due_date"] and t["status"] != "done"]
     if not rows:
-        st.info("Nothing scheduled. Add milestones or task due dates inside a project.")
+        ui.empty("Nothing scheduled. Add milestones or task due dates inside a project.")
         return
     rows.sort(key=lambda r: r[0])
     for due, items in groupby(rows, key=lambda r: r[0]):
-        st.markdown(f"#### {due}")
-        for _, kind, title, project, track in items:
-            st.markdown(f'{kind} · **{title}** '
-                        f'<span class="meta">· {project} · {track or "—"}</span>',
-                        unsafe_allow_html=True)
+        items = list(items)
+        d = ui.as_date(due)
+        ui.section(f"{d:%a} {ui.fmt_date(d)}" if d else due, len(items))
+        for _, kind, title, project, track, pid, key in items:
+            if ui.row(f"cal_{key}", title, f"{project} · {track or '—'}",
+                      lead=f'<span class="adr-tag">{kind}</span>'):
+                ui.open_project(pid)
+        st.write("")

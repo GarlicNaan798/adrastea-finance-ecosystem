@@ -1,7 +1,8 @@
 """Projects: a list grouped by track, and a per-project workspace with tabs
-(Stream / Tasks / Deadlines / Docs / Budget / About) — the ManageBac 'class' model.
+(Updates / Tasks / Deadlines / Docs / Budget / About) — the ManageBac 'class' model.
 Everything about a project lives in one place instead of scattered global pages."""
 from datetime import date
+from html import escape
 
 import pandas as pd
 import streamlit as st
@@ -44,24 +45,29 @@ def _list(user):
     ui.page_header("Projects", "Portfolio")
 
     if manageable:
-        with st.expander("➕ New project"):
+        with st.expander("New project", icon=":material/add:"):
             _new_project(user, manageable)
 
     projects = core.list_projects()
     if not projects:
-        st.info("No projects yet."
-                + (" Create one above." if manageable else " Ask a director to add one."))
+        ui.empty("No projects yet."
+                 + (" Create one above." if manageable else " Ask a director to add one."))
     else:
+        latest = {r["project_id"]: r for r in core.latest_progress_by_project()}
         present = [t for t in core.TRACKS if any(p["track"] == t for p in projects)]
         for track in present:
-            st.markdown(f"#### {track}")
-            st.caption(f'Director: {directors.get(track, {}).get("name") or "—"}')
-            for p in [p for p in projects if p["track"] == track]:
-                if st.button(f'**{p["name"]}**  ·  '
-                             f'{p["status"].replace("_", " ").title()}',
-                             key=f"nav_open_{p['id']}", width='stretch'):
+            in_track = [p for p in projects if p["track"] == track]
+            ui.section(track, len(in_track),
+                       f'Director: {directors.get(track, {}).get("name") or "—"}')
+            for p in in_track:
+                lp = latest.get(p["id"])
+                if ui.row(f"open_{p['id']}", p["name"],
+                          p["status"].replace("_", " ").title()
+                          + (f' · last update {ui.when(lp["created_at"])}' if lp else ""),
+                          aside=ui.status_pill(lp["status"]) if lp else "No updates"):
                     st.session_state.open_project = p["id"]
                     st.rerun()
+            st.write("")
 
     arch = [a for a in core.list_archived_projects() if manages(a["track"])]
     if arch:
@@ -103,7 +109,7 @@ def _workspace(user, proj):
     can_edit = manages or track in led              # details, deadlines, docs, tasks
     can_post = manages or track in member_of        # stream updates
 
-    if st.button("← All projects"):
+    if st.button("All projects", type="tertiary", icon=":material/arrow_back:"):
         st.session_state.pop("open_project", None)
         st.rerun()
     ui.page_header(proj["name"], track)
@@ -154,8 +160,8 @@ def _stream(user, proj, can_post):
     for g in feed:
         when = g["created_at"][:16].replace("T", " ")
         st.markdown(
-            f'{ui.status_pill(g["status"])} &nbsp;**{g["title"] or "(untitled)"}** '
-            f'<span class="meta">· {when} · {g["author_name"] or "—"}</span>',
+            f'{ui.status_pill(g["status"])} &nbsp;**{escape(g["title"] or "(untitled)")}** '
+            f'<span class="meta">· {when} · {escape(g["author_name"] or "—")}</span>',
             unsafe_allow_html=True)
         if g["note"]:
             st.write(g["note"])
@@ -239,8 +245,8 @@ def _tasks(user, proj, can_assign):
     for t in tlist:
         can_e = can_assign or t["assignee_id"] == uid   # its assignee, or a manager/lead
         c1, c2, c3 = st.columns([3, 1.5, 1])
-        c1.markdown(f'**{t["title"]}** <span class="meta">· '
-                    f'{t["assignee_name"] or "unassigned"} · due {t["due_date"] or "—"}'
+        c1.markdown(f'**{escape(t["title"])}** <span class="meta">· '
+                    f'{escape(t["assignee_name"] or "unassigned")} · due {ui.fmt_date(t["due_date"])}'
                     f'</span>', unsafe_allow_html=True)
         ns = c2.selectbox("Status", list(core.TASK_STATUSES),
                           index=list(core.TASK_STATUSES).index(t["status"]),
