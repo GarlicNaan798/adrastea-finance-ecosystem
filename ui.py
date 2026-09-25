@@ -5,6 +5,7 @@ This module only adds brand bits and a few theme-aware tokens (--adr-*).
 """
 from __future__ import annotations
 
+import random
 from datetime import date
 from html import escape
 from urllib.parse import urlparse
@@ -276,6 +277,19 @@ select:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible,
   outline: 2px solid var(--adr-accent); outline-offset: 2px; border-radius: 4px;
 }
 
+/* Subtle star twinkle: a fixed, non-interactive layer of stars gently pulsing at
+   varied rates (so they don't blink in unison). Sits behind all content; the
+   static starfield stays steady behind it. Disabled for reduced-motion. */
+.adr-twinkle { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.adr-twinkle i { position: absolute; display: block; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 4px 1px rgba(199,184,255,.45); opacity: .3;
+  animation: adr-tw var(--d,4s) var(--t,0s) ease-in-out infinite; will-change: opacity, transform; }
+@keyframes adr-tw {
+  0%, 100% { opacity: .12; transform: scale(.7); }
+  50% { opacity: .85; transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { .adr-twinkle i { animation: none; opacity: .45; } }
+
 /* Primary buttons: deep violet fill with white label (4.8:1, passes AA). */
 [data-testid^="stBaseButton-primary"],
 [data-testid^="stBaseButton-primary"] * { color: #fff !important; }
@@ -283,8 +297,24 @@ select:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible,
 """
 
 
+def _twinkle_html(n: int = 32) -> str:
+    """A fixed layer of stars that gently twinkle (seeded, so positions are stable)."""
+    r = random.Random(7)
+    stars = []
+    for _ in range(n):
+        stars.append(
+            f'<i style="left:{round(r.uniform(1, 99), 1)}%;top:{round(r.uniform(1, 99), 1)}%;'
+            f'width:{r.choice([1, 1, 1.5, 2])}px;height:{r.choice([1, 1, 1.5, 2])}px;'
+            f'--d:{round(r.uniform(2.6, 6.0), 1)}s;--t:{round(r.uniform(0, 6), 1)}s"></i>')
+    return '<div class="adr-twinkle" aria-hidden="true">' + "".join(stars) + "</div>"
+
+
+_TWINKLE = _twinkle_html()
+
+
 def apply_style() -> None:
     st.markdown(_STYLE, unsafe_allow_html=True)
+    st.markdown(_TWINKLE, unsafe_allow_html=True)
 
 
 def page_header(title: str, overline: str | None = None, dateline: str | None = None) -> None:
