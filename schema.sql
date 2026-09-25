@@ -3,6 +3,7 @@
 -- This rebuilds the app tables. It is safe on a fresh project; it DROPS the
 -- app tables (and their data) if you re-run it on a populated database.
 
+drop table if exists meeting_notes cascade;
 drop table if exists comments cascade;
 drop table if exists milestones cascade;
 drop table if exists task_links cascade;
@@ -154,3 +155,16 @@ create table comments (
     created_at  text not null
 );
 create index if not exists comments_by_parent on comments(parent_type, parent_id);
+
+-- Meeting notes: leads/directors post dated notes (title, summary, optional link).
+create table meeting_notes (
+    id           bigint generated always as identity primary key,
+    title        text not null,
+    meeting_date text,
+    summary      text,
+    url          text,
+    track        text,
+    author_id    uuid references profiles(id),
+    created_at   text not null
+);
+create index if not exists meeting_notes_by_date on meeting_notes(meeting_date desc);

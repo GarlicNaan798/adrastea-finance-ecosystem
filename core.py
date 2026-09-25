@@ -609,3 +609,27 @@ def list_comments(parent_type: str, parent_id: int):
               "LEFT JOIN profiles u ON u.id = c.author_id "
               "WHERE c.parent_type = %s AND c.parent_id = %s "
               "ORDER BY c.created_at, c.id", (parent_type, parent_id))
+
+
+# --- Meeting notes (leads/directors post dated notes with an optional link) --
+def add_meeting_note(title, meeting_date, summary, url, track, author_id) -> int:
+    u = clean_url(url) if url else None
+    return _insert(
+        "INSERT INTO meeting_notes (title, meeting_date, summary, url, track, "
+        "author_id, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        ((title or "").strip(), meeting_date or None, (summary or "").strip() or None,
+         u, track or None, author_id, now()))
+
+
+def list_meeting_notes(track: str | None = None):
+    sql = ("SELECT n.*, u.name AS author_name FROM meeting_notes n "
+           "LEFT JOIN profiles u ON u.id = n.author_id WHERE TRUE")
+    args = []
+    if track:
+        sql += " AND n.track = %s"; args.append(track)
+    return _q(sql + " ORDER BY (n.meeting_date IS NULL), n.meeting_date DESC, n.id DESC",
+              tuple(args))
+
+
+def remove_meeting_note(nid: int) -> None:
+    _run("DELETE FROM meeting_notes WHERE id = %s", (nid,))
