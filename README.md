@@ -83,11 +83,11 @@ unavailable the app falls back to signing in each visit.
 
 ## Design & accessibility
 
-- **Light + dark mode**, both brand-warm, via native Streamlit theming
-  (`.streamlit/config.toml` `[theme.light]` / `[theme.dark]`); follows the
-  viewer's system preference.
+- **Cosmic (deep-space purple/black) theme** via native Streamlit theming
+  (`.streamlit/config.toml`), with a layered nebula + fixed starfield background
+  injected in `ui.py`. Applied uniformly (both `[theme.light]`/`[theme.dark]`).
 - **WCAG AA contrast** across text, links, buttons, muted labels, and status
-  pills in both themes (validated); visible keyboard focus rings on every
+  pills (validated numerically); visible keyboard focus rings on every
   interactive element; status is conveyed by label text, not colour alone.
 - Fonts (Fraunces headings, Inter body) are set through native theme options, so
   Material icons render as glyphs rather than ligature text.

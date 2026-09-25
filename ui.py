@@ -88,13 +88,22 @@ _STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
 
-:root { --adr-accent:#7E4F33; --adr-muted:#635D53; --adr-ink:#23211C;
-        --adr-hair:rgba(35,33,28,.10); --adr-rule:rgba(35,33,28,.55);
-        --adr-late:#9B3D33; --adr-ease:cubic-bezier(.32,.72,0,1); }
-@media (prefers-color-scheme: dark) {
-  :root { --adr-accent:#C08A63; --adr-muted:#A79E90; --adr-ink:#ECE7DD;
-          --adr-hair:rgba(255,255,255,.10); --adr-rule:rgba(236,231,221,.45);
-          --adr-late:#E08A7E; }
+:root { --adr-accent:#A78BFA; --adr-muted:#A79FC7; --adr-ink:#EAE6F8;
+        --adr-hair:rgba(167,139,250,.16); --adr-rule:rgba(234,230,248,.30);
+        --adr-late:#F0857A; --adr-ease:cubic-bezier(.32,.72,0,1); }
+
+/* Deep-space background: layered nebula glow + a fixed starfield behind everything.
+   Kept subtle so starlight text stays fully legible (AA-validated). */
+[data-testid="stApp"] {
+  background-color:#0B0714;
+  background-image:
+    radial-gradient(1150px 780px at 12% -10%, rgba(124,77,255,.20), transparent 60%),
+    radial-gradient(950px 700px at 110% 2%, rgba(168,85,247,.14), transparent 55%),
+    radial-gradient(1000px 950px at 50% 120%, rgba(88,28,135,.22), transparent 62%),
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22340%22%20height%3D%22340%22%20viewBox%3D%220%200%20340%20340%22%3E%3Ccircle%20cx%3D%22217.4%22%20cy%3D%228.5%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22250.4%22%20cy%3D%22230.1%22%20r%3D%221.0%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%2210.8%22%20cy%3D%2231.9%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22190.8%22%20cy%3D%22243.4%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%22152.7%22%20cy%3D%2294.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22237.4%22%20cy%3D%22115.7%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%2234.8%22%20cy%3D%22129.2%22%20r%3D%220.7%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.53%22%2F%3E%3Ccircle%20cx%3D%2289.9%22%20cy%3D%2214.8%22%20r%3D%220.8%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%2226.8%22%20cy%3D%2299.7%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%22196.3%22%20cy%3D%22239.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22%2F%3E%3Ccircle%20cx%3D%22335.0%22%20cy%3D%22290.8%22%20r%3D%220.5%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%22216.1%22%20cy%3D%22124.0%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%22238.6%22%20cy%3D%22232.4%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.41%22%2F%3E%3Ccircle%20cx%3D%22181.6%22%20cy%3D%2283.2%22%20r%3D%220.8%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2274.7%22%20cy%3D%22110.3%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22273.7%22%20cy%3D%22136.4%22%20r%3D%220.5%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%22298.0%22%20cy%3D%22107.0%22%20r%3D%221.3%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%2248.6%22%20cy%3D%2247.5%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22254.0%22%20cy%3D%22145.7%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22339.1%22%20cy%3D%2247.0%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%22292.8%22%20cy%3D%2252.0%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.5%22%2F%3E%3Ccircle%20cx%3D%22202.8%22%20cy%3D%22130.8%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.6%22%2F%3E%3Ccircle%20cx%3D%2285.5%22%20cy%3D%22188.1%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22%2F%3E%3Ccircle%20cx%3D%22231.8%22%20cy%3D%22182.6%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22%2F%3E%3Ccircle%20cx%3D%2237.9%22%20cy%3D%22147.8%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22%2F%3E%3Ccircle%20cx%3D%22330.4%22%20cy%3D%22259.1%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22286.2%22%20cy%3D%22172.6%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22%2F%3E%3Ccircle%20cx%3D%22183.4%22%20cy%3D%22264.7%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22110.2%22%20cy%3D%226.6%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22%2F%3E%3Ccircle%20cx%3D%2281.4%22%20cy%3D%2281.9%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.57%22%2F%3E%3Ccircle%20cx%3D%22248.8%22%20cy%3D%22277.4%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22%2F%3E%3Ccircle%20cx%3D%22224.3%22%20cy%3D%22321.9%22%20r%3D%220.6%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22143.9%22%20cy%3D%2272.0%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22242.4%22%20cy%3D%22135.7%22%20r%3D%221.3%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%22305.9%22%20cy%3D%22153.5%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%227.2%22%20cy%3D%22188.3%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22240.7%22%20cy%3D%2220.0%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%2224.1%22%20cy%3D%2280.9%22%20r%3D%221.3%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%2245.0%22%20cy%3D%22318.1%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%22266.8%22%20cy%3D%22274.5%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.17%22%2F%3E%3Ccircle%20cx%3D%22120.5%22%20cy%3D%22139.8%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22%2F%3E%3Ccircle%20cx%3D%2220.6%22%20cy%3D%22247.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22182.3%22%20cy%3D%2247.7%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22297.3%22%20cy%3D%2225.6%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.17%22%2F%3E%3Ccircle%20cx%3D%22284.2%22%20cy%3D%22329.5%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.2%22%2F%3E%3Ccircle%20cx%3D%22163.7%22%20cy%3D%22294.0%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat:no-repeat,no-repeat,no-repeat,repeat;
+  background-size:auto,auto,auto,340px 340px;
+  background-attachment:fixed;
 }
 
 .block-container { max-width: 1500px; padding: 2.4rem 2.6rem 4rem; }
@@ -267,12 +276,9 @@ select:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible,
   outline: 2px solid var(--adr-accent); outline-offset: 2px; border-radius: 4px;
 }
 
-/* Dark mode uses a light clay primary, so give primary buttons dark label text
-   (white-on-clay fails WCAG AA; dark-on-clay passes at 6:1). */
-@media (prefers-color-scheme: dark) {
-  [data-testid^="stBaseButton-primary"],
-  [data-testid^="stBaseButton-primary"] * { color: #1A1714 !important; }
-}
+/* Primary buttons: deep violet fill with white label (4.8:1, passes AA). */
+[data-testid^="stBaseButton-primary"],
+[data-testid^="stBaseButton-primary"] * { color: #fff !important; }
 </style>
 """
 
@@ -341,32 +347,26 @@ def when(ts: str) -> str:
 
 
 
-# Chart clay: mid-tone that holds >=3:1 (graphics) on both paper and dark ground.
-CLAY = "#9E6B4B"
+# Chart accent: violet that holds >=3:1 (graphics) on the deep-space ground.
+CLAY = "#A78BFA"
 
-# streamlit-sortables renders in its own iframe; this restyles the Kanban board.
+# streamlit-sortables renders in its own iframe; this restyles the Kanban board
+# to match the cosmic theme (translucent columns, violet-lit cards).
 BOARD_CSS = """
 .sortable-component { display: flex; flex-direction: row; align-items: stretch;
   background: transparent; border: 0; padding: 0; gap: .8rem; }
-.sortable-container { flex: 1; min-width: 0; margin: 0; background: rgba(35,33,28,.035);
-  border: 1px solid rgba(35,33,28,.10); border-radius: 4px; padding: .4rem; }
+.sortable-container { flex: 1; min-width: 0; margin: 0; background: rgba(167,139,250,.05);
+  border: 1px solid rgba(167,139,250,.16); border-radius: 4px; padding: .4rem; }
 .sortable-container-header { background: transparent; font: 600 .7rem Inter, system-ui,
-  sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #635D53;
+  sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #A79FC7;
   padding: .35rem .4rem .5rem; }
 .sortable-container-body { display: flex; flex-direction: column; background: transparent;
   min-height: 3rem; }
-.sortable-item, .sortable-item:hover { background: #FBFAF7; color: #23211C;
-  border: 1px solid rgba(35,33,28,.12); border-radius: 3px; font: 500 .85rem Inter,
+.sortable-item, .sortable-item:hover { background: #1B1533; color: #EAE6F8;
+  border: 1px solid rgba(167,139,250,.18); border-radius: 3px; font: 500 .85rem Inter,
   system-ui, sans-serif; padding: .5rem .6rem; margin: 0 0 .35rem; box-shadow: none;
   text-align: left; justify-content: flex-start; }
-.sortable-item:hover { border-color: #7E4F33; }
-@media (prefers-color-scheme: dark) {
-  .sortable-container { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.10); }
-  .sortable-container-header { color: #A79E90; background: transparent; }
-  .sortable-item, .sortable-item:hover { background: #24201B; color: #ECE7DD;
-    border-color: rgba(255,255,255,.12); }
-  .sortable-item:hover { border-color: #C08A63; }
-}
+.sortable-item:hover { border-color: #A78BFA; }
 """
 
 

@@ -1,5 +1,6 @@
-# Native Streamlit theming: shared options + separate light/dark palettes.
-# The app follows the viewer's system light/dark preference.
+# Native Streamlit theming — a cosmic (deep-space purple/black) palette.
+# Both light and dark tables use the same values so the app is always the space
+# theme regardless of the viewer's system preference. All pairs pass WCAG AA.
 
 [theme]
 font = "Inter"
@@ -8,20 +9,20 @@ baseRadius = "0.3rem"
 showWidgetBorder = true
 
 [theme.light]
-backgroundColor = "#FBFAF7"          # warm paper
-secondaryBackgroundColor = "#F1EFE8" # sidebar / cards / inputs
-textColor = "#23211C"                # warm ink
-primaryColor = "#7E4F33"             # deep clay (AA on paper + white-on-clay)
-borderColor = "#E4DFD4"
-linkColor = "#7E4F33"
+backgroundColor = "#0B0714"          # deep space
+secondaryBackgroundColor = "#17122C" # panels / sidebar / inputs
+textColor = "#EAE6F8"                # starlight
+primaryColor = "#7C4DFF"             # nebula violet (white text = 4.8:1)
+borderColor = "#2C2550"
+linkColor = "#A78BFA"
 
 [theme.dark]
-backgroundColor = "#1A1714"          # warm near-black
-secondaryBackgroundColor = "#24201B"
-textColor = "#ECE7DD"                # warm cream
-primaryColor = "#C08A63"             # lighter clay for dark ground
-borderColor = "#3A342D"
-linkColor = "#C08A63"
+backgroundColor = "#0B0714"
+secondaryBackgroundColor = "#17122C"
+textColor = "#EAE6F8"
+primaryColor = "#7C4DFF"
+borderColor = "#2C2550"
+linkColor = "#A78BFA"
 
 [client]
 toolbarMode = "minimal"
