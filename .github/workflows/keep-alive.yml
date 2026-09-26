@@ -1,0 +1,73 @@
+name: keep-alive
+
+# Keeps the free-tier deployment from going idle:
+#  - Supabase pauses a free project after ~7 days with no activity
+#  - Streamlit Community Cloud sleeps an app after a few days with no visitors
+# Runs twice a day (scheduled Actions runs are often delayed and occasionally
+# skipped, so extra margin against the ~7-day window). Public repo => free minutes.
+# NOTE: GitHub auto-disables scheduled workflows after 60 days with NO new commits
+# to the default branch; a commit (or clicking "Enable workflow") re-arms it.
+
+on:
+  schedule:
+    - cron: "23 7 * * *"       # 07:23 UTC
+    - cron: "23 19 * * *"      # 19:23 UTC (off the top of the hour on purpose)
+  workflow_dispatch: {}        # allow manual runs from the Actions tab
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping Supabase REST (reset the pause timer)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SUPABASE_URL:?set the SUPABASE_URL repo secret}"
+          : "${SUPABASE_ANON_KEY:?set the SUPABASE_ANON_KEY repo secret}"
+          # A successful SELECT returns 200 and provably runs a query against
+          # Postgres (that is the activity that resets the pause timer). Only the
+          # apikey header is needed for the anon/publishable key.
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL%/}/rest/v1/profiles?select=id&limit=1") || {
+              echo "Could not reach Supabase (connection/transport error)"; exit 1; }
+          echo "Supabase REST HTTP ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "Expected 200 (a real SELECT = DB activity). Got ${code}."
+            echo "  401 -> bad/missing SUPABASE_ANON_KEY secret."
+            echo "  5xx/540 -> the project is likely PAUSED; unpause it in the"
+            echo "            Supabase dashboard (this workflow prevents pausing,"
+            echo "            it cannot undo an existing pause)."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright (chromium)
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null
+          npm install playwright@1.47.2 >/dev/null
+          npx playwright install --with-deps chromium
+
+      - name: Load the app (wake it if asleep, verify it rendered)
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          set -euo pipefail
+          : "${APP_URL:?set the APP_URL repo secret}"
+          node .github/scripts/keepalive.js
