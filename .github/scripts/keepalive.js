@@ -42,16 +42,32 @@ const LIVE_APP = /held to account|Create account|Sign in/i;
     }
 
     // The real app is INSIDE the Streamlit iframe - confirm the login rendered there.
-    // Generous timeout: a cold container can take a while to boot after waking.
-    const app = page.frameLocator('iframe[title="streamlitApp"]');
-    try {
-      await app.getByText(LIVE_APP).first().waitFor({ state: "visible", timeout: 180000 });
-      console.log("Live app rendered inside the Streamlit iframe (login visible).");
-    } catch {
-      console.error("App did not render inside the iframe within the timeout - it may "
-        + "still be asleep or the container failed to boot. Failing loudly.");
+    // A cold container boots blank for a while after waking, so wait generously and
+    // reload once if the first attempt times out (the observed failure mode).
+    const app = () => page.frameLocator('iframe[title="streamlitApp"]');
+    const appIsUp = async (timeout) => {
+      try {
+        await app().getByText(LIVE_APP).first().waitFor({ state: "visible", timeout });
+        return true;
+      } catch { return false; }
+    };
+    let up = await appIsUp(300000);            // 5 min - covers a cold boot after wake
+    if (!up) {
+      console.log("Not rendered yet; reloading and waiting once more...");
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+      up = await appIsUp(180000);              // another 3 min
+    }
+    if (!up) {
+      console.error("App did not render inside the iframe within the timeout. Diagnostics:");
+      console.error("  page title:", await page.title());
+      console.error("  frames:", page.frames().map((f) => f.url()));
+      try {
+        const t = await app().locator("body").innerText();
+        console.error("  app-frame text sample:", (t || "").slice(0, 300).replace(/\n+/g, " | "));
+      } catch (e) { console.error("  could not read app frame:", e.message); }
       process.exit(1);
     }
+    console.log("Live app rendered inside the Streamlit iframe (login visible).");
 
     // Linger so the websocket session is fully established (a genuine "view").
     await page.waitForTimeout(15000);
