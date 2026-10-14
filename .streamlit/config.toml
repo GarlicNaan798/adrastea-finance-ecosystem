@@ -1,6 +1,6 @@
-# Native Streamlit theming — a cosmic (deep-space purple/black) palette.
-# Both light and dark tables use the same values so the app is always the space
-# theme regardless of the viewer's system preference. All pairs pass WCAG AA.
+# Native Streamlit theming — the missionadrastea.org brand palette (deep-space
+# purple/black). Both light and dark tables use the same values so the app is
+# always the brand theme regardless of the viewer's system preference. AA-validated.
 
 [theme]
 font = "Inter"
@@ -9,20 +9,20 @@ baseRadius = "0.3rem"
 showWidgetBorder = true
 
 [theme.light]
-backgroundColor = "#0B0714"          # deep space
-secondaryBackgroundColor = "#17122C" # panels / sidebar / inputs
-textColor = "#EAE6F8"                # starlight
-primaryColor = "#7C4DFF"             # nebula violet (white text = 4.8:1)
-borderColor = "#2C2550"
-linkColor = "#A78BFA"
+backgroundColor = "#07040F"          # --bg
+secondaryBackgroundColor = "#130B26" # panels / sidebar / inputs
+textColor = "#F6F0FF"                # --ink
+primaryColor = "#7415C9"             # --brand (white text = 7.8:1)
+borderColor = "#2A1A45"
+linkColor = "#C9A7FF"                # --lilac
 
 [theme.dark]
-backgroundColor = "#0B0714"
-secondaryBackgroundColor = "#17122C"
-textColor = "#EAE6F8"
-primaryColor = "#7C4DFF"
-borderColor = "#2C2550"
-linkColor = "#A78BFA"
+backgroundColor = "#07040F"
+secondaryBackgroundColor = "#130B26"
+textColor = "#F6F0FF"
+primaryColor = "#7415C9"
+borderColor = "#2A1A45"
+linkColor = "#C9A7FF"
 
 [client]
 toolbarMode = "minimal"

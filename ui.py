@@ -5,6 +5,8 @@ This module only adds brand bits and a few theme-aware tokens (--adr-*).
 """
 from __future__ import annotations
 
+import base64
+import pathlib
 import random
 from datetime import date
 from html import escape
@@ -71,36 +73,47 @@ def _restore_session(ck) -> dict | None:
     return st.session_state.user
 
 
+def _emblem_uri() -> str:
+    """The official Adrastea emblem (brand/emblem.jpg from missionadrastea.org),
+    inlined as a data URI so it ships with the app and needs no external request."""
+    try:
+        p = pathlib.Path(__file__).parent / "brand" / "emblem.jpg"
+        return "data:image/jpeg;base64," + base64.b64encode(p.read_bytes()).decode()
+    except Exception:
+        return ""
+
+
+_EMBLEM = _emblem_uri()
+
+
 def mark(size: int = 34) -> str:
-    """Inline Adrastea mark. 'A' inherits currentColor; orbit/moon use the
-    theme accent, so it reads correctly in both light and dark."""
-    return (
-        f'<svg width="{size}" height="{size}" viewBox="0 0 100 100" '
-        f'style="display:block;flex:none" aria-hidden="true">'
-        f'<path d="M18 86 L50 15 L82 86" fill="none" stroke="currentColor" '
-        f'stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'
-        f'<ellipse cx="50" cy="56" rx="40" ry="13" fill="none" stroke="var(--adr-accent)" '
-        f'stroke-width="3.6" transform="rotate(-18 50 56)"/>'
-        f'<circle cx="88" cy="44" r="5.4" fill="var(--adr-accent)"/></svg>'
-    )
+    """The Adrastea emblem, shown as a circle (matches the website's brand mark)."""
+    if _EMBLEM:
+        return (f'<img src="{_EMBLEM}" width="{size}" height="{size}" alt="Adrastea" '
+                f'style="display:block;flex:none;border-radius:50%;'
+                f'box-shadow:0 0 0 1px var(--adr-hair)">')
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 100 100" '
+            f'style="display:block;flex:none" aria-hidden="true">'
+            f'<circle cx="50" cy="50" r="44" fill="none" stroke="var(--adr-accent)" '
+            f'stroke-width="6"/></svg>')
 
 
 _STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
 
-:root { --adr-accent:#A78BFA; --adr-muted:#A79FC7; --adr-ink:#EAE6F8;
-        --adr-hair:rgba(167,139,250,.16); --adr-rule:rgba(234,230,248,.30);
-        --adr-late:#F0857A; --adr-ease:cubic-bezier(.32,.72,0,1); }
+:root { --adr-accent:#C9A7FF; --adr-muted:#A99BC9; --adr-ink:#F6F0FF;
+        --adr-hair:rgba(201,167,255,.18); --adr-rule:rgba(201,167,255,.32);
+        --adr-late:#F0857A; --adr-ease:cubic-bezier(.2,.8,.2,1); }
 
 /* Deep-space background: layered nebula glow + a fixed starfield behind everything.
    Kept subtle so starlight text stays fully legible (AA-validated). */
 [data-testid="stApp"] {
-  background-color:#0B0714;
+  background-color:#07040F;
   background-image:
-    radial-gradient(1150px 780px at 12% -10%, rgba(124,77,255,.20), transparent 60%),
-    radial-gradient(950px 700px at 110% 2%, rgba(168,85,247,.14), transparent 55%),
-    radial-gradient(1000px 950px at 50% 120%, rgba(88,28,135,.22), transparent 62%),
+    radial-gradient(1150px 780px at 12% -10%, rgba(116,21,201,.28), transparent 60%),
+    radial-gradient(950px 700px at 110% 2%, rgba(154,107,255,.16), transparent 55%),
+    radial-gradient(1000px 950px at 50% 120%, rgba(116,21,201,.22), transparent 62%),
     url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22340%22%20height%3D%22340%22%20viewBox%3D%220%200%20340%20340%22%3E%3Ccircle%20cx%3D%22217.4%22%20cy%3D%228.5%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22250.4%22%20cy%3D%22230.1%22%20r%3D%221.0%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%2210.8%22%20cy%3D%2231.9%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22190.8%22%20cy%3D%22243.4%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%22152.7%22%20cy%3D%2294.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22237.4%22%20cy%3D%22115.7%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%2234.8%22%20cy%3D%22129.2%22%20r%3D%220.7%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.53%22%2F%3E%3Ccircle%20cx%3D%2289.9%22%20cy%3D%2214.8%22%20r%3D%220.8%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%2226.8%22%20cy%3D%2299.7%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%22196.3%22%20cy%3D%22239.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22%2F%3E%3Ccircle%20cx%3D%22335.0%22%20cy%3D%22290.8%22%20r%3D%220.5%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%22216.1%22%20cy%3D%22124.0%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%22238.6%22%20cy%3D%22232.4%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.41%22%2F%3E%3Ccircle%20cx%3D%22181.6%22%20cy%3D%2283.2%22%20r%3D%220.8%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.3%22%2F%3E%3Ccircle%20cx%3D%2274.7%22%20cy%3D%22110.3%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22273.7%22%20cy%3D%22136.4%22%20r%3D%220.5%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%22298.0%22%20cy%3D%22107.0%22%20r%3D%221.3%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%2248.6%22%20cy%3D%2247.5%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22254.0%22%20cy%3D%22145.7%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22339.1%22%20cy%3D%2247.0%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%22292.8%22%20cy%3D%2252.0%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.5%22%2F%3E%3Ccircle%20cx%3D%22202.8%22%20cy%3D%22130.8%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.6%22%2F%3E%3Ccircle%20cx%3D%2285.5%22%20cy%3D%22188.1%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22%2F%3E%3Ccircle%20cx%3D%22231.8%22%20cy%3D%22182.6%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22%2F%3E%3Ccircle%20cx%3D%2237.9%22%20cy%3D%22147.8%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22%2F%3E%3Ccircle%20cx%3D%22330.4%22%20cy%3D%22259.1%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22286.2%22%20cy%3D%22172.6%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22%2F%3E%3Ccircle%20cx%3D%22183.4%22%20cy%3D%22264.7%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.56%22%2F%3E%3Ccircle%20cx%3D%22110.2%22%20cy%3D%226.6%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22%2F%3E%3Ccircle%20cx%3D%2281.4%22%20cy%3D%2281.9%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.57%22%2F%3E%3Ccircle%20cx%3D%22248.8%22%20cy%3D%22277.4%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22%2F%3E%3Ccircle%20cx%3D%22224.3%22%20cy%3D%22321.9%22%20r%3D%220.6%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22143.9%22%20cy%3D%2272.0%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22%2F%3E%3Ccircle%20cx%3D%22242.4%22%20cy%3D%22135.7%22%20r%3D%221.3%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.43%22%2F%3E%3Ccircle%20cx%3D%22305.9%22%20cy%3D%22153.5%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%227.2%22%20cy%3D%22188.3%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22240.7%22%20cy%3D%2220.0%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.55%22%2F%3E%3Ccircle%20cx%3D%2224.1%22%20cy%3D%2280.9%22%20r%3D%221.3%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%2245.0%22%20cy%3D%22318.1%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22%2F%3E%3Ccircle%20cx%3D%22266.8%22%20cy%3D%22274.5%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.17%22%2F%3E%3Ccircle%20cx%3D%22120.5%22%20cy%3D%22139.8%22%20r%3D%221.3%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22%2F%3E%3Ccircle%20cx%3D%2220.6%22%20cy%3D%22247.6%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22182.3%22%20cy%3D%2247.7%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22297.3%22%20cy%3D%2225.6%22%20r%3D%221.0%22%20fill%3D%22%23b8c6ff%22%20opacity%3D%220.17%22%2F%3E%3Ccircle%20cx%3D%22284.2%22%20cy%3D%22329.5%22%20r%3D%220.6%22%20fill%3D%22%23cbb8ff%22%20opacity%3D%220.2%22%2F%3E%3Ccircle%20cx%3D%22163.7%22%20cy%3D%22294.0%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22%2F%3E%3C%2Fsvg%3E");
   background-repeat:no-repeat,no-repeat,no-repeat,repeat;
   background-size:auto,auto,auto,340px 340px;
@@ -377,26 +390,26 @@ def when(ts: str) -> str:
 
 
 
-# Chart accent: violet that holds >=3:1 (graphics) on the deep-space ground.
-CLAY = "#A78BFA"
+# Chart accent: brand violet that holds >=3:1 (graphics) on the deep-space ground.
+CLAY = "#9A6BFF"
 
 # streamlit-sortables renders in its own iframe; this restyles the Kanban board
-# to match the cosmic theme (translucent columns, violet-lit cards).
+# to match the Adrastea brand (translucent columns, violet-lit cards).
 BOARD_CSS = """
 .sortable-component { display: flex; flex-direction: row; align-items: stretch;
   background: transparent; border: 0; padding: 0; gap: .8rem; }
-.sortable-container { flex: 1; min-width: 0; margin: 0; background: rgba(167,139,250,.05);
-  border: 1px solid rgba(167,139,250,.16); border-radius: 4px; padding: .4rem; }
+.sortable-container { flex: 1; min-width: 0; margin: 0; background: rgba(201,167,255,.05);
+  border: 1px solid rgba(201,167,255,.18); border-radius: 4px; padding: .4rem; }
 .sortable-container-header { background: transparent; font: 600 .7rem Inter, system-ui,
-  sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #A79FC7;
+  sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #A99BC9;
   padding: .35rem .4rem .5rem; }
 .sortable-container-body { display: flex; flex-direction: column; background: transparent;
   min-height: 3rem; }
-.sortable-item, .sortable-item:hover { background: #1B1533; color: #EAE6F8;
-  border: 1px solid rgba(167,139,250,.18); border-radius: 3px; font: 500 .85rem Inter,
+.sortable-item, .sortable-item:hover { background: #160B2B; color: #F6F0FF;
+  border: 1px solid rgba(201,167,255,.20); border-radius: 3px; font: 500 .85rem Inter,
   system-ui, sans-serif; padding: .5rem .6rem; margin: 0 0 .35rem; box-shadow: none;
   text-align: left; justify-content: flex-start; }
-.sortable-item:hover { border-color: #A78BFA; }
+.sortable-item:hover { border-color: #C9A7FF; }
 """
 
 
@@ -499,7 +512,7 @@ def login_screen(ck) -> None:
             f'<div style="font-size:.72rem;letter-spacing:.24em;color:var(--adr-accent);'
             f'margin-top:.2rem;white-space:nowrap">RESEARCH&nbsp;&nbsp;FOUNDATION</div>'
             f'<div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;'
-            f'color:var(--adr-muted);margin-top:.9rem">Research, held to account.</div>'
+            f'color:var(--adr-muted);margin-top:.9rem">Ad astra, for all.</div>'
             f'</div>', unsafe_allow_html=True)
         st.write("")
         signin, signup = st.tabs(["Sign in", "Create account"])
