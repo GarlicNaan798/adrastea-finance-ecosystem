@@ -595,6 +595,15 @@ def upcoming_milestones(limit: int = 8):
               "AND pr.archived_at IS NULL ORDER BY m.due_date LIMIT %s", (limit,))
 
 
+def incomplete_milestones():
+    """Every not-done milestone on a live project — dated AND undated — for the
+    calendar (which shows undated ones in a 'No date set' group)."""
+    return _q("SELECT m.*, pr.name AS project_name, pr.track FROM milestones m "
+              "JOIN projects pr ON pr.id = m.project_id "
+              "WHERE m.done = false AND pr.archived_at IS NULL "
+              "ORDER BY (m.due_date IS NULL), m.due_date")
+
+
 # --- Comment threads (under a discussion update or a task) -------------------
 def add_comment(parent_type: str, parent_id: int, author_id: str, body: str) -> int:
     if parent_type not in ("update", "task"):

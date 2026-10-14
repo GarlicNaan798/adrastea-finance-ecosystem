@@ -1,5 +1,6 @@
-"""Calendar — an agenda of every upcoming dated item you can see (milestones +
-task due dates), grouped by date. The ManageBac 'everything dated in one place'."""
+"""Calendar — every open, dated item grouped by date (milestones + task due
+dates), plus a 'No date set' group so undated work is still visible and you're
+nudged to add a deadline. Click any row to open its project."""
 from itertools import groupby
 
 import streamlit as st
@@ -10,22 +11,36 @@ import ui
 
 def calendar_view():
     ui.page_header("Calendar", "Deadlines")
-    rows = [(m["due_date"], "Milestone", m["title"], m["project_name"], m["track"],
-             m["project_id"], f"m{m['id']}") for m in core.upcoming_milestones(limit=200)]
-    rows += [(t["due_date"], "Task", t["title"], t["project_name"], t["track"],
-              t["project_id"], f"t{t['id']}")
-             for t in core.list_tasks()
-             if t["due_date"] and t["status"] != "done"]
-    if not rows:
-        ui.empty("Nothing scheduled. Add milestones or task due dates inside a project.")
+
+    # (due_date|None, kind, title, project, track, project_id, key)
+    items = [(m["due_date"], "Milestone", m["title"], m["project_name"], m["track"],
+              m["project_id"], f"m{m['id']}") for m in core.incomplete_milestones()]
+    items += [(t["due_date"], "Task", t["title"], t["project_name"], t["track"],
+               t["project_id"], f"t{t['id']}")
+              for t in core.list_tasks() if t["status"] != "done"]
+
+    dated = sorted((i for i in items if i[0]), key=lambda r: r[0])
+    undated = [i for i in items if not i[0]]
+
+    if not dated and not undated:
+        ui.empty("Nothing scheduled yet. Create tasks or milestones in a project — "
+                 "give them a due date and they'll show up here by date.")
         return
-    rows.sort(key=lambda r: r[0])
-    for due, items in groupby(rows, key=lambda r: r[0]):
-        items = list(items)
-        d = ui.as_date(due)
-        ui.section(f"{d:%a} {ui.fmt_date(d)}" if d else due, len(items))
-        for _, kind, title, project, track, pid, key in items:
+
+    def _rows(group):
+        for _, kind, title, project, track, pid, key in group:
             if ui.row(f"cal_{key}", title, f"{project} · {track or '—'}",
                       lead=f'<span class="adr-tag">{kind}</span>'):
                 ui.open_project(pid)
+
+    for due, group in groupby(dated, key=lambda r: r[0]):
+        group = list(group)
+        d = ui.as_date(due)
+        ui.section(f"{d:%a} {ui.fmt_date(d)}" if d else due, len(group))
+        _rows(group)
+        st.write("")
+
+    if undated:
+        ui.section("No date set", len(undated), "Open one to add a deadline")
+        _rows(undated)
         st.write("")
